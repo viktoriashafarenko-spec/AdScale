@@ -1,0 +1,18 @@
+{
+  "name": "banner-render-service",
+  "version": "1.0.0",
+  "description": "Dr.Max banner copy generator (Vertex AI Gemini) with client-side banner composition.",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "dependencies": {
+    "@google-cloud/vertexai": "^1.10.0",
+    "express": "^5.2.1"
+  }
+}

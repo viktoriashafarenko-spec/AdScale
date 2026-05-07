@@ -1,2 +1,8 @@
 .DS_Store
 banners/
+node_modules/
+*.backup.*
+*.before_*.*
+*.broken_*.*
+*.swp
+archive_old_root_files/

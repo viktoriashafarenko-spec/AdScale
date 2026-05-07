@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dr.Max Banner Generator</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div>
+        <div class="eyebrow">AI Creative Factory</div>
+        <h1>Dr.Max Banner Generator</h1>
+        <p>Upload products and logo, generate copy, then build 3 banner variants.</p>
+      </div>
+    </header>
+
+    <main class="grid">
+      <section class="card">
+        <h2>Uploaded products</h2>
+
+        <label class="label">Upload product images</label>
+        <input id="productImagesInput" type="file" accept="image/*" multiple />
+
+        <div class="helper">
+          All uploaded products are used in the banner automatically.
+        </div>
+
+        <div id="uploadedProductsList" class="uploaded-grid"></div>
+      </section>
+
+      <section class="card">
+        <h2>Brand assets</h2>
+
+        <label class="label">Upload logo</label>
+        <input id="logoInput" type="file" accept="image/*" />
+
+        <div id="logoPreviewBox" class="logo-preview-box">
+          <div class="helper">No logo uploaded yet.</div>
+        </div>
+
+        <label class="label">Target group</label>
+        <input id="targetGroupInput" type="text" placeholder="e.g. kobiety 35+ / skóra sucha i wrażliwa" />
+      </section>
+
+      <section class="card">
+        <h2>Template settings</h2>
+
+        <label class="label checkbox">
+          <input id="showLogo" type="checkbox" checked />
+          <span>Show logo</span>
+        </label>
+
+        <label class="label checkbox">
+          <input id="showCTA" type="checkbox" checked />
+          <span>Show CTA button</span>
+        </label>
+
+        <label class="label checkbox">
+          <input id="showDiscount" type="checkbox" checked />
+          <span>Show discount badge</span>
+        </label>
+
+        <label class="label checkbox">
+          <input id="showDisclaimer" type="checkbox" checked />
+          <span>Show disclaimer</span>
+        </label>
+
+        <div id="discountBlock">
+          <label class="label">Discount text</label>
+          <input id="discountText" type="text" value="do -20%" />
+        </div>
+
+        <div id="disclaimerBlock">
+          <label class="label">Disclaimer text</label>
+          <textarea id="disclaimerText" rows="4">Oferta obowiązuje do 31.03.2026 r. lub do wyczerpania zapasów.</textarea>
+        </div>
+
+        <label class="label">Format</label>
+        <select id="formatSelect">
+          <option value="9:16" selected>9:16</option>
+        </select>
+      </section>
+
+      <section class="card full action-bar-card">
+        <div class="actions">
+          <button id="generateCopyBtn" class="primary-btn" type="button">Generate copy</button>
+          <button id="generateBannersBtn" class="primary-btn secondary-red" type="button">Generate banners</button>
+        </div>
+      </section>
+
+      <section class="card full">
+        <h2>Generated copy variants</h2>
+        <div id="variantsGrid" class="variants-grid"></div>
+      </section>
+
+      <section class="card full">
+        <h2>Generated banners</h2>
+        <div id="bannersGrid" class="banners-grid"></div>
+      </section>
+    </main>
+  </div>
+
+  <script src="/app.js"></script>
+</body>
+</html>
