@@ -1,0 +1,6 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    { "name": "drmax-cabinet", "runtimeExecutable": "python3", "runtimeArgs": ["-m", "http.server", "8137", "--directory", "/tmp/banner-src/public"], "port": 8137 }
+  ]
+}

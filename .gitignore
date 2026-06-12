@@ -6,3 +6,6 @@ node_modules/
 *.broken_*.*
 *.swp
 archive_old_root_files/
+
+# Claude Code machine-local settings (personal permission grants)
+.claude/settings.local.json
