@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    width: {{WIDTH}}px;
+    height: {{HEIGHT}}px;
+    overflow: hidden;
+    font-family: "Montserrat", "Proxima Nova", Arial, sans-serif;
+    color: #fff;
+    background: #1f2937;
+  }
+  .banner {
+    position: relative;
+    width: {{WIDTH}}px;
+    height: {{HEIGHT}}px;
+    overflow: hidden;
+  }
+  .bg {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    z-index: 0;
+  }
+  .logo-wrap {
+    position: absolute;
+    top: 60px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: {{LOGO_DISPLAY}};
+    z-index: 3;
+  }
+  .logo {
+    max-width: 320px;
+    max-height: 120px;
+    object-fit: contain;
+    display: block;
+  }
+  .discount {
+    position: absolute;
+    top: 220px;
+    right: 60px;
+    background: #e30613;
+    color: #fff;
+    border-radius: 999px;
+    padding: 22px 36px;
+    font-weight: 800;
+    font-size: 56px;
+    letter-spacing: -0.5px;
+    line-height: 1;
+    display: {{DISCOUNT_DISPLAY}};
+    z-index: 3;
+  }
+  .copy {
+    position: absolute;
+    left: 60px;
+    right: 60px;
+    bottom: 380px;
+    z-index: 3;
+  }
+  .headline {
+    font-size: 96px;
+    font-weight: 800;
+    line-height: 1.05;
+    letter-spacing: -1.5px;
+    margin-bottom: 24px;
+    word-break: break-word;
+  }
+  .subheadline {
+    font-size: 44px;
+    font-weight: 500;
+    line-height: 1.2;
+    word-break: break-word;
+  }
+  .cta {
+    position: absolute;
+    left: 60px;
+    bottom: 220px;
+    background: #e30613;
+    color: #fff;
+    border-radius: 999px;
+    padding: 28px 56px;
+    font-weight: 700;
+    font-size: 42px;
+    letter-spacing: -0.2px;
+    line-height: 1;
+    display: {{CTA_DISPLAY}};
+    z-index: 3;
+  }
+  .legal {
+    position: absolute;
+    left: 60px;
+    right: 60px;
+    bottom: 60px;
+    font-size: 26px;
+    font-weight: 400;
+    line-height: 1.35;
+    color: rgba(255, 255, 255, 0.92);
+    display: {{LEGAL_DISPLAY}};
+    z-index: 3;
+  }
+</style>
+</head>
+<body>
+<div class="banner">
+  <img class="bg" src="{{BG_URL}}" alt="" />
+
+  <div class="logo-wrap">
+    <img class="logo" src="{{LOGO_URL}}" alt="" />
+  </div>
+
+  <div class="discount" data-fit>{{PROMO}}</div>
+
+  <div class="copy">
+    <div class="headline" data-fit>{{HEADLINE}}</div>
+    <div class="subheadline" data-fit>{{SUBHEADLINE}}</div>
+  </div>
+
+  <div class="cta" data-fit>{{CTA}}</div>
+
+  <div class="legal" data-fit>{{LEGAL}}</div>
+</div>
+</body>
+</html>

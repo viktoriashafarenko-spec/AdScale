@@ -2,6 +2,23 @@ import express from "express";
 import path from "path";
 import { fileURLToPath } from "url";
 import { VertexAI } from "@google-cloud/vertexai";
+import {
+  fetchFrameDetails,
+  exportNodes,
+  buildManifest,
+  fetchImageRefs
+} from "./lib/figma.js";
+import { buildHtml, build9x16Html, renderHtmlToPng } from "./lib/render.js";
+import { buildHtmlFromTree } from "./lib/figmaTree.js";
+import {
+  generateImageWithProducts,
+  generateFullBanner,
+  SCENE_PROMPTS,
+  getScenePrompts,
+  editImage
+} from "./lib/geminiImage.js";
+import { uploadPng, listFiles } from "./lib/storage.js";
+import { fitSceneToBanner } from "./lib/sceneFit.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -10,6 +27,54 @@ const app = express();
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, "public")));
+
+const FIGMA_FILE_KEY = process.env.FIGMA_FILE_KEY || "";
+const GEMINI_IMAGE_LOCATION =
+  process.env.GEMINI_IMAGE_LOCATION || "global";
+const GEMINI_IMAGE_MODEL =
+  process.env.GEMINI_IMAGE_MODEL || "gemini-3-pro-image-preview";
+const SCENES_BUCKET =
+  process.env.SCENES_BUCKET || "banner-automation-489120-creative-assets";
+const FIGMA_FRAME_IDS = (process.env.FIGMA_FRAME_IDS || "16:3,23:19,23:43")
+  .split(",")
+  .map((s) => s.trim())
+  .filter(Boolean);
+
+function getFigmaToken() {
+  const token = process.env.FIGMA_TOKEN;
+  if (!token) throw new Error("Missing FIGMA_TOKEN env var (mount via Secret Manager).");
+  return token;
+}
+
+let _templatesCache = null;
+let _imageRefsCache = null;
+async function getTemplates() {
+  if (_templatesCache) return _templatesCache;
+  if (!FIGMA_FILE_KEY) throw new Error("FIGMA_FILE_KEY env var not set.");
+
+  const token = getFigmaToken();
+  const [frames, imageRefs] = await Promise.all([
+    fetchFrameDetails(FIGMA_FILE_KEY, FIGMA_FRAME_IDS, token),
+    fetchImageRefs(FIGMA_FILE_KEY, token)
+  ]);
+  const manifests = frames.map(buildManifest);
+
+  const exportIds = manifests
+    .map((m) => m.background?.exportId)
+    .filter(Boolean);
+  const exports = exportIds.length
+    ? await exportNodes(FIGMA_FILE_KEY, exportIds, token, 1)
+    : {};
+
+  for (const m of manifests) {
+    const id = m.background?.exportId;
+    m.backgroundUrl = id ? exports[id] || null : null;
+  }
+
+  _imageRefsCache = imageRefs;
+  _templatesCache = manifests;
+  return manifests;
+}
 
 app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "index.html"));
@@ -226,20 +291,408 @@ Output ONLY valid JSON.
   }
 });
 
-app.get("/get-scenes", async (req, res) => {
+app.get("/templates", async (req, res) => {
   try {
-    const bucketName = "banner-automation-489120-creative-assets";
+    const templates = await getTemplates();
+    res.json({
+      templates: templates.map((m) => ({
+        id: m.id,
+        name: m.name,
+        width: m.width,
+        height: m.height,
+        slots: Object.fromEntries(
+          Object.entries(m.slots).map(([k, v]) => [k, { box: v.box, type: v.type }])
+        ),
+        backgroundUrl: m.backgroundUrl
+      }))
+    });
+  } catch (e) {
+    console.error("TEMPLATES_ERROR:", e);
+    res.status(500).json({ error: e.message || "Failed to load templates" });
+  }
+});
 
-    const scenes = [
-      `https://storage.googleapis.com/${bucketName}/hf_20260311_002407_390e28fd-e61e-424b-b7cf-1a64c8311e02.png`,
-      `https://storage.googleapis.com/${bucketName}/hf_20260311_001156_0bed7eed-e0dc-45ac-bb55-fb08be2c5aea (1).png`,
-      `https://storage.googleapis.com/${bucketName}/hf_20260310_234033_fbcae989-fa25-48aa-bc6e-d3cba88852d8.png`
-    ];
+app.post("/refresh-templates", async (req, res) => {
+  _templatesCache = null;
+  try {
+    const templates = await getTemplates();
+    res.json({ status: "OK", count: templates.length });
+  } catch (e) {
+    res.status(500).json({ error: e.message || "Refresh failed" });
+  }
+});
 
-    res.json({ scenes });
-  } catch (err) {
-    console.error("GET_SCENES_ERROR:", err);
-    res.status(500).json({ error: "Failed to load scenes" });
+const GENERATION_ASPECT = "21:9";
+const GENERATION_IMAGE_SIZE = "1K";
+
+app.post("/generate-scenes", async (req, res) => {
+  try {
+    const {
+      products = [],
+      targetGroup = "",
+      count = 3,
+      aspectRatio: requestedAspect,
+      targetWidth = 0,
+      targetHeight = 0,
+      styleReferenceUrl = null,
+      prompts: clientPrompts = null,
+      imageSize: requestedSize = "",
+      client = "default",
+      composition = true
+    } = req.body;
+    const clientId = String(client).replace(/[^a-z0-9_-]/gi, "") || "default";
+    const useCompositionRef = composition !== false;
+    const project =
+      process.env.GOOGLE_CLOUD_PROJECT || process.env.GCLOUD_PROJECT;
+    if (!project) throw new Error("GOOGLE_CLOUD_PROJECT not set");
+
+    const ALLOWED_ASPECTS = ["1:1","2:3","3:2","3:4","4:3","4:5","5:4","9:16","16:9","21:9"];
+    const aspectRatio = ALLOWED_ASPECTS.includes(requestedAspect) ? requestedAspect : GENERATION_ASPECT;
+    const ALLOWED_SIZES = ["1K","2K","4K"];
+    const imageSize = ALLOWED_SIZES.includes(requestedSize) ? requestedSize : GENERATION_IMAGE_SIZE;
+
+    const productsWithImages = products.filter(
+      (p) => p.dataUrl || p.imageDataUrl
+    );
+
+    // Client may pass an explicit prompt matrix (style × variation). Otherwise use built-in scene prompts.
+    let prompts;
+    if (Array.isArray(clientPrompts) && clientPrompts.length) {
+      prompts = clientPrompts
+        .slice(0, 30)
+        .map((p, i) => ({ id: p.label || p.id || `p${i + 1}`, text: String(p.text || p.prompt || "").trim() }))
+        .filter((p) => p.text);
+    } else {
+      const promptsForAspect = getScenePrompts(aspectRatio);
+      const desiredCount = Math.max(1, Math.min(count, promptsForAspect.length));
+      prompts = promptsForAspect.slice(0, desiredCount);
+    }
+    if (!prompts.length) throw new Error("No prompts to generate");
+
+    const sceneBuffers = [];
+    for (let idx = 0; idx < prompts.length; idx++) {
+      const p = prompts[idx];
+      let buf = null;
+      let lastErr = null;
+      for (let attempt = 0; attempt < 3 && !buf; attempt++) {
+        try {
+          buf = await generateImageWithProducts({
+            project,
+            location: GEMINI_IMAGE_LOCATION,
+            model: GEMINI_IMAGE_MODEL,
+            prompt: p.text,
+            products: productsWithImages,
+            aspectRatio,
+            imageSize,
+            styleReferenceUrl,
+            useCompositionRef
+          });
+        } catch (e) {
+          lastErr = e;
+          const isQuota = String(e.message || "").includes("429");
+          if (!isQuota) {
+            console.warn(`Gemini error variant ${idx}:`, e.message);
+            break;
+          }
+          console.warn(`Gemini 429 variant ${idx} attempt ${attempt + 1}`);
+          await new Promise((r) => setTimeout(r, 6000));
+        }
+      }
+      if (!buf) {
+        throw new Error(
+          `Gemini Image failed for variant ${idx}: ${lastErr?.message || "unknown error"}`
+        );
+      }
+      sceneBuffers.push(buf);
+    }
+
+    const urls = await Promise.all(
+      sceneBuffers.map((buf, i) =>
+        uploadPng(SCENES_BUCKET, buf, `clients/${clientId}/tmp`, {
+          client: clientId,
+          label: prompts[i]?.id || "",
+          format: aspectRatio
+        })
+      )
+    );
+
+    res.json({
+      scenes: urls,
+      prompts: prompts.map((p) => ({ id: p.id, text: p.text })),
+      model: GEMINI_IMAGE_MODEL,
+      productImages: productsWithImages.length
+    });
+  } catch (e) {
+    console.error("GENERATE_SCENES_ERROR:", e);
+    res.status(500).json({ error: e.message || "Scene generation failed" });
+  }
+});
+
+app.post("/render-9x16", async (req, res) => {
+  try {
+    const {
+      copy = {},
+      logoDataUrl = "",
+      sceneUrl = "",
+      settings = {}
+    } = req.body;
+
+    const html = await build9x16Html({
+      width: 1080,
+      height: 1920,
+      bgUrl: sceneUrl,
+      logoUrl: logoDataUrl,
+      copy,
+      settings
+    });
+    const png = await renderHtmlToPng(html, 1080, 1920);
+    res.setHeader("Content-Type", "image/png");
+    res.setHeader("Cache-Control", "no-store");
+    res.send(png);
+  } catch (e) {
+    console.error("RENDER_9X16_ERROR:", e);
+    res.status(500).json({ error: e.message || "Render failed" });
+  }
+});
+
+app.post("/render-banner", async (req, res) => {
+  try {
+    const {
+      templateId,
+      copy = {},
+      logoDataUrl = "",
+      sceneUrl = "",
+      settings = {},
+      slotOverrides = null,
+      targetWidth,
+      targetHeight,
+      bgTransform = null
+    } = req.body;
+    if (!templateId) {
+      return res.status(400).json({ error: "templateId is required" });
+    }
+    const bgScale = bgTransform && Number(bgTransform.scale) > 0 ? Number(bgTransform.scale) : 1;
+    const bgX = bgTransform && bgTransform.x != null ? Number(bgTransform.x) : 0.5;
+    const bgY = bgTransform && bgTransform.y != null ? Number(bgTransform.y) : 0.5;
+
+    const templates = await getTemplates();
+    const manifest = templates.find((m) => m.id === templateId);
+    if (!manifest) {
+      return res.status(404).json({ error: `Template ${templateId} not found` });
+    }
+
+    // If client passed a target canvas size, use it; otherwise fall back to template's native size.
+    const finalWidth = Number.isFinite(targetWidth) && targetWidth > 0 ? targetWidth : manifest.width;
+    const finalHeight = Number.isFinite(targetHeight) && targetHeight > 0 ? targetHeight : manifest.height;
+
+    const originalBgUrl = sceneUrl || manifest.backgroundUrl || "";
+    const anchor = templateId === "23:19" ? "right" : "center";
+    const fittedBgUrl =
+      originalBgUrl
+        ? await fitSceneToBanner(
+            originalBgUrl,
+            finalWidth,
+            finalHeight,
+            { anchor, scale: bgScale, x: bgX, y: bgY }
+          )
+        : null;
+    const bgUrl = fittedBgUrl || originalBgUrl;
+
+    const html = manifest.rawFrame
+      ? buildHtmlFromTree({
+          frame: manifest.rawFrame,
+          copy,
+          sceneUrl: bgUrl,
+          logoDataUrl,
+          settings,
+          imageRefs: _imageRefsCache || {},
+          slotOverrides,
+          canvasWidth: finalWidth,
+          canvasHeight: finalHeight
+        })
+      : buildHtml({
+          manifest,
+          copy,
+          logoDataUrl,
+          bgUrl,
+          settings,
+          canvasWidth: finalWidth,
+          canvasHeight: finalHeight
+        });
+
+    const png = await renderHtmlToPng(html, finalWidth, finalHeight);
+
+    res.setHeader("Content-Type", "image/png");
+    res.setHeader("Cache-Control", "no-store");
+    res.send(png);
+  } catch (e) {
+    console.error("RENDER_BANNER_ERROR:", e);
+    res.status(500).json({ error: e.message || "Render failed" });
+  }
+});
+
+app.post("/generate-banner-full", async (req, res) => {
+  try {
+    const {
+      products = [],
+      copy = {},
+      logoDataUrl = "",
+      aspectRatio = "21:9"
+    } = req.body;
+
+    const project =
+      process.env.GOOGLE_CLOUD_PROJECT || process.env.GCLOUD_PROJECT;
+    if (!project) throw new Error("GOOGLE_CLOUD_PROJECT not set");
+
+    const productsWithImages = products.filter(
+      (p) => p.dataUrl || p.imageDataUrl
+    );
+
+    let buf = null;
+    let lastErr = null;
+    for (let attempt = 0; attempt < 3 && !buf; attempt++) {
+      try {
+        buf = await generateFullBanner({
+          project,
+          location: GEMINI_IMAGE_LOCATION,
+          model: GEMINI_IMAGE_MODEL,
+          products: productsWithImages,
+          copy,
+          logoDataUrl,
+          aspectRatio
+        });
+      } catch (e) {
+        lastErr = e;
+        const isQuota = String(e.message || "").includes("429");
+        if (!isQuota) {
+          console.warn(`generateFullBanner error:`, e.message);
+          break;
+        }
+        console.warn(`generateFullBanner 429 attempt ${attempt + 1}`);
+        await new Promise((r) => setTimeout(r, 6000));
+      }
+    }
+
+    if (!buf) {
+      throw new Error(
+        `Full banner generation failed: ${lastErr?.message || "unknown error"}`
+      );
+    }
+
+    const url = await uploadPng(SCENES_BUCKET, buf, "banners-full");
+    res.json({ url, aspectRatio });
+  } catch (e) {
+    console.error("GENERATE_BANNER_FULL_ERROR:", e);
+    res.status(500).json({ error: e.message || "Full banner generation failed" });
+  }
+});
+
+function safeClient(v) {
+  return String(v || "default").replace(/[^a-z0-9_-]/gi, "") || "default";
+}
+
+// Edit an existing generated scene with a text instruction (image-to-image).
+app.post("/edit-scene", async (req, res) => {
+  try {
+    const {
+      imageUrl = "",
+      imageDataUrl = "",
+      prompt = "",
+      aspectRatio: ra,
+      imageSize: rs = "",
+      client = "default"
+    } = req.body;
+    const project = process.env.GOOGLE_CLOUD_PROJECT || process.env.GCLOUD_PROJECT;
+    if (!project) throw new Error("GOOGLE_CLOUD_PROJECT not set");
+    if (!String(prompt).trim()) return res.status(400).json({ error: "prompt required" });
+    if (!imageUrl && !imageDataUrl) return res.status(400).json({ error: "source image required" });
+
+    const ALLOWED_ASPECTS = ["1:1","2:3","3:2","3:4","4:3","4:5","5:4","9:16","16:9","21:9"];
+    const aspectRatio = ALLOWED_ASPECTS.includes(ra) ? ra : "1:1";
+    const ALLOWED_SIZES = ["1K","2K","4K"];
+    const imageSize = ALLOWED_SIZES.includes(rs) ? rs : GENERATION_IMAGE_SIZE;
+    const clientId = safeClient(client);
+
+    let buf = null, lastErr = null;
+    for (let attempt = 0; attempt < 3 && !buf; attempt++) {
+      try {
+        buf = await editImage({
+          project,
+          location: GEMINI_IMAGE_LOCATION,
+          model: GEMINI_IMAGE_MODEL,
+          prompt: String(prompt).trim(),
+          imageUrl: imageUrl || null,
+          imageDataUrl: imageDataUrl || null,
+          aspectRatio,
+          imageSize
+        });
+      } catch (e) {
+        lastErr = e;
+        if (!String(e.message || "").includes("429")) break;
+        await new Promise((r) => setTimeout(r, 6000));
+      }
+    }
+    if (!buf) throw new Error(`Edit failed: ${lastErr?.message || "unknown error"}`);
+
+    const url = await uploadPng(SCENES_BUCKET, buf, `clients/${clientId}/tmp`, {
+      client: clientId,
+      label: "edit",
+      format: aspectRatio
+    });
+    res.json({ url });
+  } catch (e) {
+    console.error("EDIT_SCENE_ERROR:", e);
+    res.status(500).json({ error: e.message || "Edit failed" });
+  }
+});
+
+// Save a rendered asset (e.g. a banner) into the client's library folder.
+app.post("/save-asset", async (req, res) => {
+  try {
+    const { client = "default", kind = "image", dataUrl = "", sourceUrl = "", meta = {} } = req.body;
+    const c = safeClient(client);
+    let buf;
+    if (/^data:image\/[a-z+]+;base64,/i.test(dataUrl)) {
+      buf = Buffer.from(dataUrl.split(",")[1], "base64");
+    } else if (sourceUrl) {
+      // Copy an already-uploaded scene into the library (avoids browser CORS).
+      const r = await fetch(sourceUrl);
+      if (!r.ok) throw new Error(`Could not fetch sourceUrl (${r.status})`);
+      buf = Buffer.from(await r.arrayBuffer());
+    } else {
+      return res.status(400).json({ error: "dataUrl or sourceUrl required" });
+    }
+    const folder = kind === "banner" ? "banners" : "images";
+    const cleanMeta = {};
+    for (const [k, v] of Object.entries(meta || {})) cleanMeta[k] = String(v);
+    const url = await uploadPng(SCENES_BUCKET, buf, `clients/${c}/${folder}`, {
+      client: c,
+      ...cleanMeta
+    });
+    res.json({ url });
+  } catch (e) {
+    console.error("SAVE_ASSET_ERROR:", e);
+    res.status(500).json({ error: e.message || "Save failed" });
+  }
+});
+
+// List a client's saved images and banners.
+app.get("/library", async (req, res) => {
+  try {
+    const c = safeClient(req.query.client);
+    const [images, banners] = await Promise.all([
+      listFiles(SCENES_BUCKET, `clients/${c}/images/`),
+      listFiles(SCENES_BUCKET, `clients/${c}/banners/`)
+    ]);
+    const newestFirst = (a, b) => String(b.created).localeCompare(String(a.created));
+    res.json({
+      client: c,
+      images: images.sort(newestFirst),
+      banners: banners.sort(newestFirst)
+    });
+  } catch (e) {
+    console.error("LIBRARY_ERROR:", e);
+    res.status(500).json({ error: e.message || "Library failed" });
   }
 });
 
