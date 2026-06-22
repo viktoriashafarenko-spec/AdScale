@@ -723,21 +723,103 @@ async function applyComp(card, overrides){
   finally{ reformatInFlight=false; }
 }
 
-/* edit background — zoom + pan the scene inside the banner, then re-render */
+/* edit background — LIVE layered preview: the scene zooms/pans in real time as the
+   sliders move (CSS mirrors the server's fitSceneToBanner crop math exactly, so the
+   preview matches the final), with text/logo guides from the template slots on top.
+   "Zastosuj tło" then commits via /render-banner for the authoritative flat PNG. */
+function ensureBgCss(){
+  if (document.getElementById("bg-live-css")) return;
+  const s = document.createElement("style"); s.id = "bg-live-css";
+  s.textContent = `
+  .bg-stage{position:relative;width:100%;overflow:hidden;display:block;background:#000;container-type:size;}
+  .bg-stage .bgl{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;will-change:transform,object-position;}
+  .bg-ovl{position:absolute;inset:0;pointer-events:none;}
+  .bg-ovl>.t{position:absolute;overflow:hidden;word-break:break-word;color:#fff;font-weight:700;line-height:1.1;text-shadow:0 1px 6px rgba(0,0,0,.55);}
+  .bg-ovl>.pill{position:absolute;display:flex;align-items:center;justify-content:center;overflow:hidden;background:var(--red);color:#fff;border-radius:999px;font-weight:800;}
+  .bg-ovl>.lg{position:absolute;object-fit:contain;}
+  .bg-hint{position:absolute;left:8px;bottom:8px;z-index:5;background:rgba(0,0,0,.6);color:#fff;font-size:10px;font-weight:700;padding:3px 8px;border-radius:6px;pointer-events:none;}`;
+  document.head.appendChild(s);
+}
 function editBg(btn){
   const card = btn.closest("[data-ji]"); const job = renderedJobs.get(card); if (!job) return;
   const box = card.querySelector(".editbox");
-  if (box.dataset.mode==="bg"){ box.classList.add("hidden"); box.dataset.mode=""; return; }
+  if (box.dataset.mode==="bg"){ bgEditClose(card); return; }
+  if (!job.sceneUrl){ alert("Ten baner nie ma osobnego tła do edycji."); return; }
+  ensureBgCss();
   box.dataset.mode="bg"; box.classList.remove("hidden");
   const t = job.bgTransform || { scale:1, x:0.5, y:0.5 };
   box.innerHTML = `
-    <label>Zoom tła: <span data-z>${t.scale.toFixed(2)}×</span></label>
-    <input type="range" min="1" max="3" step="0.05" value="${t.scale}" data-bg="scale" oninput="this.closest('.editbox').querySelector('[data-z]').textContent=(+this.value).toFixed(2)+'×'">
+    <label>Zoom tła: <span data-z>${(+t.scale).toFixed(2)}×</span></label>
+    <input type="range" min="1" max="3" step="0.05" value="${t.scale}" data-bg="scale" oninput="bgLive(this)">
     <label>Przesuń ← →</label>
-    <input type="range" min="0" max="100" step="1" value="${Math.round(t.x*100)}" data-bg="x">
+    <input type="range" min="0" max="100" step="1" value="${Math.round(t.x*100)}" data-bg="x" oninput="bgLive(this)">
     <label>Przesuń ↑ ↓</label>
-    <input type="range" min="0" max="100" step="1" value="${Math.round(t.y*100)}" data-bg="y">
-    <button class="ap" onclick="applyBg(this)">Zastosuj tło</button><button class="ca" onclick="this.closest('.editbox').classList.add('hidden')">Anuluj</button>`;
+    <input type="range" min="0" max="100" step="1" value="${Math.round(t.y*100)}" data-bg="y" oninput="bgLive(this)">
+    <button class="ap" onclick="applyBg(this)">Zastosuj tło</button><button class="ca" onclick="bgCancel(this)">Anuluj</button>`;
+  mountBgStage(card, job);
+  bgLiveApply(card, +t.scale, +t.x, +t.y);
+}
+function mountBgStage(card, job){
+  const frame = card.querySelector(".frame");
+  const flat = frame.querySelector("img");
+  if (flat && flat.src) card.dataset.flatSrc = flat.src;   // remember PNG to restore on cancel
+  const stage = document.createElement("div");
+  stage.className = "bg-stage";
+  stage.style.aspectRatio = `${job.w} / ${job.h}`;          // hold the frame's height once the PNG is gone
+  stage.innerHTML =
+    `<img class="bgl" src="${esc(job.sceneUrl)}" alt="">` +
+    bgOverlayHtml(card, job) +
+    `<div class="bg-hint">Podgląd na żywo · „Zastosuj tło", aby zapisać</div>`;
+  frame.innerHTML = "";
+  frame.appendChild(stage);
+}
+/* text/logo guides from the template slots (positions = where the server will place them).
+   Slot-less templates (HTML 9:16) fall back to a background-only live preview. */
+function bgOverlayHtml(card, job){
+  const tpl = availableTemplates.find(t=>t.id===job.templateId);
+  if (!tpl || !tpl.slots) return "";
+  const nW = tpl.width, nH = tpl.height, ov = job.slotOverrides||{}, st = getSettings();
+  const box = (k)=>{ const s=tpl.slots[k]; if(!s||!s.box) return null; return ov[k]?{...s.box,...ov[k]}:s.box; };
+  const pos = (b)=>`left:${(b.x/nW*100).toFixed(2)}%;top:${(b.y/nH*100).toFixed(2)}%;width:${(b.w/nW*100).toFixed(2)}%;height:${(b.h/nH*100).toFixed(2)}%;`;
+  const font = (k)=>{ const s=(tpl.slots[k]&&tpl.slots[k].style)||{}; let c=""; if(s.fontSize)c+=`font-size:${(s.fontSize/nH*100).toFixed(2)}cqh;`; if(s.color)c+=`color:${s.color};`; if(s.fontWeight)c+=`font-weight:${s.fontWeight};`; if(s.textAlign)c+=`text-align:${s.textAlign};`; if(s.lineHeight)c+=`line-height:${s.lineHeight};`; return c; };
+  let h = `<div class="bg-ovl">`;
+  const txt = (k,v)=>{ const b=box(k); if(b&&v) h+=`<div class="t" style="${pos(b)}${font(k)}">${esc(v)}</div>`; };
+  const pill = (k,v)=>{ const b=box(k); if(b&&v) h+=`<div class="pill" style="${pos(b)}${font(k)}">${esc(v)}</div>`; };
+  if (st.showLogo && uploadedLogo && uploadedLogo.dataUrl){ const b=box("logo"); if(b) h+=`<img class="lg" style="${pos(b)}" src="${esc(uploadedLogo.dataUrl)}">`; }
+  txt("headline", job.copy.headline);
+  txt("subheadline", job.copy.subheadline);
+  if (st.showDiscount) pill("promo", job.copy.promo);
+  if (st.showCTA) pill("cta", job.copy.cta);
+  if (st.showDisclaimer) txt("legal", job.copy.legal);
+  return h + `</div>`;
+}
+/* CSS crop that reproduces server fitSceneToBanner: min 1.2× zoom while panning, clamp 1–4×.
+   object-fit:cover == server cover-crop; object-position == pan; scale about the same focal
+   point == zoom (algebraically identical: transform-origin == object-position == x/y). */
+function bgLiveApply(card, scale, x, y){
+  const img = card.querySelector(".frame .bgl"); if(!img) return;
+  const px = Math.max(0,Math.min(1, x)), py = Math.max(0,Math.min(1, y));
+  const panning = Math.abs(px-0.5)>0.001 || Math.abs(py-0.5)>0.001;
+  let s = Math.max(1, Math.min(Number(scale)||1, 4));
+  if (panning && s<1.2) s = 1.2;
+  const p = `${(px*100).toFixed(2)}% ${(py*100).toFixed(2)}%`;
+  img.style.objectPosition = p;
+  img.style.transformOrigin = p;
+  img.style.transform = `scale(${s})`;
+}
+function bgLive(el){
+  const card = el.closest("[data-ji]"); const box = card.querySelector(".editbox");
+  const scale = parseFloat(box.querySelector('[data-bg=scale]').value)||1;
+  const x = (parseInt(box.querySelector('[data-bg=x]').value,10)||50)/100;
+  const y = (parseInt(box.querySelector('[data-bg=y]').value,10)||50)/100;
+  const z = box.querySelector('[data-z]'); if(z) z.textContent = scale.toFixed(2)+"×";
+  bgLiveApply(card, scale, x, y);
+}
+function bgCancel(btn){ bgEditClose(btn.closest("[data-ji]")); }
+function bgEditClose(card){
+  const box = card.querySelector(".editbox"); if(box){ box.classList.add("hidden"); box.dataset.mode=""; }
+  const frame = card.querySelector(".frame"); const src = card.dataset.flatSrc;
+  if (frame && src) frame.innerHTML = `<img src="${src}">`;   // restore the committed PNG
 }
 async function applyBg(btn){
   if (reformatInFlight){ alert("Poczekaj na zakończenie operacji."); return; }
@@ -756,9 +838,11 @@ async function applyBg(btn){
     if (!rr.ok){ const e = await rr.json().catch(()=>({})); throw new Error(e.error||`Render ${rr.status}`); }
     const url = URL.createObjectURL(await rr.blob());
     paintBanner(card, { ...job, bgTransform }, job.format, url);
+    card.dataset.flatSrc = url;
+    if (box){ box.classList.add("hidden"); box.dataset.mode=""; }
     savedBanners.push({ url, format: job.format, templateName: job.templateName });
   }catch(err){ ov.innerHTML = `Błąd: ${esc(err.message)}`; setTimeout(()=>ov.remove(),2500); }
-  finally{ reformatInFlight=false; }
+  finally{ reformatInFlight=false; btn.disabled=false; }
 }
 
 /* HTML5 export */
