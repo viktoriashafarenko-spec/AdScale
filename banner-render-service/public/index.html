@@ -274,7 +274,7 @@
     <!-- BANNER CREATION -->
     <div class="view hidden" id="view-banners">
       <h1 class="page-h">Tworzenie banerów</h1>
-      <p class="page-sub">Wybierz szablon Dr.Max i obraz z generacji, ustaw kampanię — AI napisze copy, a my wyrenderujemy gotowe banery (z reformatami).</p>
+      <p class="page-sub">Wybierz szablon Dr.Max, ustaw kampanię i wybierz obraz z generacji — AI napisze copy, a my wyrenderujemy gotowe banery (z reformatami).</p>
 
       <div class="card">
         <h2><span class="num">1</span>Szablon Dr.Max</h2>
@@ -283,14 +283,7 @@
       </div>
 
       <div class="card">
-        <h2><span class="num">2</span>Obraz — wybierz lub wygeneruj</h2>
-        <div class="muted" style="margin:-6px 0 12px;">Wybierz tło z tej sesji lub z <b>biblioteki</b> — albo wygeneruj nowy obraz.</div>
-        <div class="pick-grid" id="pickGrid"><div class="muted">Ładuję…</div></div>
-        <div class="actions"><button class="btn green" onclick="showView('images')">+ Wygeneruj nowy obraz →</button></div>
-      </div>
-
-      <div class="card">
-        <h2><span class="num">3</span>Kampania</h2>
+        <h2><span class="num">2</span>Kampania</h2>
         <div style="display:flex;gap:24px;flex-wrap:wrap;">
           <div style="flex:1;min-width:340px;">
             <label class="lbl">Grupa docelowa</label>
@@ -309,6 +302,13 @@
           </div>
         </div>
         <div class="actions"><button class="btn" id="btnCopy" onclick="genCopy()">Generuj copy →</button></div>
+      </div>
+
+      <div class="card">
+        <h2><span class="num">3</span>Obraz — wybierz lub wygeneruj</h2>
+        <div class="muted" style="margin:-6px 0 12px;">Wybierz tło z tej sesji lub z <b>biblioteki</b> — albo wygeneruj nowy obraz.</div>
+        <div class="pick-grid" id="pickGrid"><div class="muted">Ładuję…</div></div>
+        <div class="actions"><button class="btn green" onclick="showView('images')">+ Wygeneruj nowy obraz →</button></div>
       </div>
 
       <div class="card hidden" id="copyCard">
