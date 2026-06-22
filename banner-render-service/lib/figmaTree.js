@@ -67,6 +67,9 @@ function textStyleObj(node) {
   const color = fill?.type === "SOLID" ? rgbaToCss(fill.color, fill.opacity ?? 1) : "#000";
   const align = (s.textAlignHorizontal || "LEFT").toLowerCase();
   const valign = (s.textAlignVertical || "TOP").toLowerCase();
+  // Discount (promo) renders on a SINGLE line and the fit-pass shrinks it to
+  // fit the badge width — so "do -20%" stays one tidy line instead of wrapping.
+  const isPromo = (node.name || "").toLowerCase() === "promo";
   return {
     fontFamily: `'Montserrat', sans-serif`,
     fontWeight: s.fontWeight || 400,
@@ -83,8 +86,8 @@ function textStyleObj(node) {
         ? "flex-end"
         : "flex-start",
     overflow: "hidden",
-    whiteSpace: "pre-wrap",
-    wordBreak: "break-word"
+    whiteSpace: isPromo ? "nowrap" : "pre-wrap",
+    wordBreak: isPromo ? "keep-all" : "break-word"
   };
 }
 
@@ -289,6 +292,15 @@ function renderFlexChild(node, ctx, ancestorCtaOverride, parentLayoutMode, isTop
       ...sizing
     };
 
+    // CTA must hug its content — never let a stretching parent blow the button
+    // out to full banner width (Figma "Fill" / parent "stretch" → web full-width).
+    if (lowerName === "cta") {
+      childStyles.alignSelf = "flex-start";
+      childStyles.width = "fit-content";
+      childStyles.flex = "0 0 auto";
+      delete childStyles.flexShrink;
+    }
+
     // Backgrounds / borders / shadows
     if (node.type !== "TEXT") {
       const bg = fillToBackground(node.fills, ctx.imageRefs);
@@ -341,15 +353,31 @@ function renderFlexChild(node, ctx, ancestorCtaOverride, parentLayoutMode, isTop
     if (sizing.height === "auto" || !sizing.height) {
       delete style.height;
     }
+    // Discount: pin to its designed width and shrink-to-fit so a longer promo
+    // ("do -20%") stays one line inside the badge instead of growing/overflowing.
+    let fitAttr = "";
+    if (lowerName === "promo") {
+      const pw = node.absoluteBoundingBox?.width || 0;
+      if (pw) style.width = `${pw}px`;
+      style.flex = "0 0 auto";
+      style.overflow = "hidden";
+      fitAttr = " data-fit";
+    }
     const text =
       ancestorCtaOverride !== null && (lowerName === "sprawdź" || lowerName === "cta")
         ? ancestorCtaOverride
         : resolveText(node, ctx.copy);
-    return `<div data-slot="${escapeHtml(lowerName)}" style="${styleString(style)}">${escapeHtml(text)}</div>`;
+    return `<div${fitAttr} data-slot="${escapeHtml(lowerName)}" style="${styleString(style)}">${escapeHtml(text)}</div>`;
   }
 
   // Generic container (no Auto Layout, but may have visible fills/effects + children)
   const containerStyles = { ...sizing };
+  if (lowerName === "cta") {
+    containerStyles.alignSelf = "flex-start";
+    containerStyles.width = "fit-content";
+    containerStyles.flex = "0 0 auto";
+    delete containerStyles.flexShrink;
+  }
   if (node.type !== "TEXT") {
     const bg = fillToBackground(node.fills, ctx.imageRefs);
     if (bg?.color) containerStyles.background = bg.color;
@@ -588,7 +616,8 @@ export function buildHtmlFromTree({
   imageRefs = {},
   slotOverrides = null,
   canvasWidth = null,
-  canvasHeight = null
+  canvasHeight = null,
+  scaleFit = null
 }) {
   // Frame's native size from Figma
   const frameW = frame.absoluteBoundingBox?.width || 0;
@@ -664,6 +693,32 @@ export function buildHtmlFromTree({
       })
     : `position:relative;width:${fw}px;height:${fh}px;overflow:hidden`;
 
+  // ─── Scale-fit (proportional reformat) ───────────────────────────
+  // When target aspect ≈ native aspect, the caller renders at NATIVE size
+  // and asks us to scale the whole design to the target canvas (cover).
+  // Everything — text, logo, badge — shrinks by ONE factor, so nothing
+  // overflows and proportions are preserved exactly.
+  const viewW = scaleFit && scaleFit.w > 0 ? scaleFit.w : fw;
+  const viewH = scaleFit && scaleFit.h > 0 ? scaleFit.h : fh;
+
+  let bannerStyle = bannerInlineStyle;
+  let stageOpen = "";
+  let stageClose = "";
+  if (scaleFit && scaleFit.w > 0 && scaleFit.h > 0) {
+    // CONTAIN: scale so the WHOLE design fits without cropping — this preserves
+    // the banner's edge padding exactly. A small aspect mismatch shows as thin
+    // bands, which we fill with the scene (cover) so they're never empty.
+    const s = Math.min(scaleFit.w / fw, scaleFit.h / fh);
+    const offX = (scaleFit.w - fw * s) / 2;
+    const offY = (scaleFit.h - fh * s) / 2;
+    bannerStyle = `${bannerInlineStyle};position:absolute;left:${offX}px;top:${offY}px;transform:scale(${s});transform-origin:top left`;
+    const stageBg = sceneUrl
+      ? `background-image:url('${sceneUrl}');background-size:cover;background-position:center`
+      : "background:#fff";
+    stageOpen = `<div class="stage" style="position:relative;width:${scaleFit.w}px;height:${scaleFit.h}px;overflow:hidden;${stageBg}">`;
+    stageClose = `</div>`;
+  }
+
   return `<!DOCTYPE html>
 <html>
 <head>
@@ -674,11 +729,11 @@ export function buildHtmlFromTree({
 <style>
   *, *::before, *::after { box-sizing: border-box; }
   html, body { margin: 0; padding: 0; }
-  body { width: ${fw}px; height: ${fh}px; overflow: hidden; background: #fff; }
+  body { width: ${viewW}px; height: ${viewH}px; overflow: hidden; background: #fff; }
 </style>
 </head>
 <body>
-<div class="banner" style="${bannerInlineStyle}">${children}</div>
+${stageOpen}<div class="banner" style="${bannerStyle}">${children}</div>${stageClose}
 </body>
 </html>`;
 }

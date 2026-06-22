@@ -485,14 +485,40 @@ app.post("/render-banner", async (req, res) => {
     const finalWidth = Number.isFinite(targetWidth) && targetWidth > 0 ? targetWidth : manifest.width;
     const finalHeight = Number.isFinite(targetHeight) && targetHeight > 0 ? targetHeight : manifest.height;
 
+    // ─── Smart reformat dispatch ─────────────────────────────────
+    // Compare native vs target aspect. If they're close, scale the whole
+    // design proportionally (SCALE mode) so logo/badge shrink too. If they
+    // differ a lot (e.g. landscape → tall), reflow via Flexbox (REFLOW mode).
+    const nativeW = manifest.width;
+    const nativeH = manifest.height;
+    const isReformat =
+      Math.abs(finalWidth - nativeW) > 1 || Math.abs(finalHeight - nativeH) > 1;
+    const aspectDiff =
+      nativeW > 0 && nativeH > 0
+        ? Math.abs(nativeW / nativeH - finalWidth / finalHeight) / (nativeW / nativeH)
+        : 1;
+    const ASPECT_THRESHOLD = 0.18;
+    const useScale =
+      isReformat && aspectDiff <= ASPECT_THRESHOLD && !!manifest.rawFrame;
+    console.log(
+      `REFORMAT ${nativeW}x${nativeH} -> ${finalWidth}x${finalHeight} | aspectDiff=${aspectDiff.toFixed(
+        3
+      )} | mode=${useScale ? "SCALE" : isReformat ? "REFLOW" : "NATIVE"}`
+    );
+
+    // In SCALE mode the inner design renders at NATIVE size, so fit the
+    // background to native dimensions (it gets scaled along with everything).
+    const bgFitW = useScale ? nativeW : finalWidth;
+    const bgFitH = useScale ? nativeH : finalHeight;
+
     const originalBgUrl = sceneUrl || manifest.backgroundUrl || "";
     const anchor = templateId === "23:19" ? "right" : "center";
     const fittedBgUrl =
       originalBgUrl
         ? await fitSceneToBanner(
             originalBgUrl,
-            finalWidth,
-            finalHeight,
+            bgFitW,
+            bgFitH,
             { anchor, scale: bgScale, x: bgX, y: bgY }
           )
         : null;
@@ -507,8 +533,9 @@ app.post("/render-banner", async (req, res) => {
           settings,
           imageRefs: _imageRefsCache || {},
           slotOverrides,
-          canvasWidth: finalWidth,
-          canvasHeight: finalHeight
+          canvasWidth: useScale ? nativeW : finalWidth,
+          canvasHeight: useScale ? nativeH : finalHeight,
+          scaleFit: useScale ? { w: finalWidth, h: finalHeight } : null
         })
       : buildHtml({
           manifest,

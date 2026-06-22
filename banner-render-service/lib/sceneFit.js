@@ -67,14 +67,19 @@ export async function fitSceneToBanner(
 
     // Zoom + pan: crop a banner-aspect region of the source, then resize to target.
     if (tf) {
-      const s = Math.max(1, Math.min(Number(scale) || 1, 4));
+      const px = Math.max(0, Math.min(1, Number(x)));
+      const py = Math.max(0, Math.min(1, Number(y)));
+      // If the user pans but isn't zoomed in, a same-aspect scene has no room to
+      // move (it's an exact fit) — panning would do nothing. Apply a small
+      // minimum zoom whenever panning, so moving the scene is always visible.
+      const panning = Math.abs(px - 0.5) > 0.001 || Math.abs(py - 0.5) > 0.001;
+      let s = Math.max(1, Math.min(Number(scale) || 1, 4));
+      if (panning && s < 1.2) s = 1.2;
       let cw, ch;
       if (srcAspect > tgtAspect) { ch = srcH; cw = Math.round(srcH * tgtAspect); }
       else { cw = srcW; ch = Math.round(srcW / tgtAspect); }
       cw = Math.max(1, Math.min(Math.round(cw / s), srcW));
       ch = Math.max(1, Math.min(Math.round(ch / s), srcH));
-      const px = Math.max(0, Math.min(1, Number(x)));
-      const py = Math.max(0, Math.min(1, Number(y)));
       const left = Math.round((srcW - cw) * px);
       const top = Math.round((srcH - ch) * py);
       out = await sharp(buf).extract({ left, top, width: cw, height: ch }).resize(targetW, targetH).png().toBuffer();
