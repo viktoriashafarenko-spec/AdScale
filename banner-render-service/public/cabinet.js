@@ -575,7 +575,7 @@ function buildReformatOptions(currentFormat, currentTemplateId){
   (SIBLING_SIZES[cur.family] || []).forEach(f=>{
     if (f === currentFormat) return;
     const s = FORMATS[f]; if (!s) return;
-    opts.push({ value:`${f}|${currentTemplateId}`, label:`${s.w}×${s.h} (ten sam szablon)` });
+    opts.push({ value:`${f}|${currentTemplateId}`, label:`${s.w}×${s.h}` });
   });
   // Cross-family jumps removed — scoped to the single 300×600 reformat.
   return opts;
