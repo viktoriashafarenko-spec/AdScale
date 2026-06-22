@@ -377,7 +377,9 @@ async function ensureTemplates(){
     const res = await fetch("/templates");
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || "Nie udało się załadować szablonów");
-    availableTemplates = data.templates || [];
+    // Main version scoped to the 9:16 vertical master only; 300×600 is the single
+    // reformat surface for practising the rule-based layout swap.
+    availableTemplates = (data.templates || []).filter(t => templateFamily(t) === "vertical");
     selectedTemplateIds = new Set(availableTemplates.length ? [availableTemplates[0].id] : []);
     renderTpl();
   }catch(err){
@@ -562,11 +564,10 @@ function paintBanner(card, job, format, url){
 
 /* reformat + change template (ported logic) */
 // Intra-family reformat: same master, other sizes within the same family (reflow via flexbox, reuse scene).
+// Scoped down: the ONLY reformat kept is 9:16 → 300×600 (same vertical master).
+// This is the single surface for practising / swapping the layout technology.
 const SIBLING_SIZES = {
-  vertical: ["1080x1920","1080x1350","300x600"],
-  square:   ["1080x1080","600x600","300x250"],
-  medium:   ["1920x1080","1200x628"],
-  wide:     ["1920x555","970x250","728x90"]
+  vertical: ["300x600"]
 };
 function buildReformatOptions(currentFormat, currentTemplateId){
   const opts = []; const cur = FORMATS[currentFormat]; if (!cur || !currentTemplateId) return opts;
@@ -576,21 +577,11 @@ function buildReformatOptions(currentFormat, currentTemplateId){
     const s = FORMATS[f]; if (!s) return;
     opts.push({ value:`${f}|${currentTemplateId}`, label:`${s.w}×${s.h} (ten sam szablon)` });
   });
-  // Cross-family: jump to another available master (different layout + new/fitted scene).
-  availableTemplates.forEach(t=>{
-    if (t.id === currentTemplateId) return;
-    if (templateFamily(t) === cur.family) return;
-    const w = Math.round(t.width), h = Math.round(t.height);
-    const fmt = `${w}x${h}`;
-    if (!FORMATS[fmt]) return;
-    opts.push({ value:`${fmt}|${t.id}`, label:`${w}×${h} — ${t.name} (nowa scena)` });
-  });
+  // Cross-family jumps removed — scoped to the single 300×600 reformat.
   return opts;
 }
 function buildChangeTemplateOptions(currentFormat, currentTemplateId){
-  const opts = []; const cur = FORMATS[currentFormat]; if (!cur || cur.family === "html") return opts;
-  availableTemplates.forEach(t=>{ if (t.id===currentTemplateId) return; if (!templateMatchesFormat(t,currentFormat)) return; opts.push({ value:`${currentFormat}|${t.id}`, label:t.name }); });
-  return opts;
+  return []; // template-swap removed in the scoped 9:16-only version
 }
 function populateReformat(card, format, templateId){
   const rf = card.querySelector(".reformat-sel");
