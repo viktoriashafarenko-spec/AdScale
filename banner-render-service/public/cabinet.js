@@ -598,21 +598,18 @@ async function reformatBanner(card, value){
   const [newFormat, newTemplateId] = value.split("|");
   const newSpec = getFormatSpec(newFormat), oldSpec = getFormatSpec(job.format);
   const isHtml = newSpec.family === "html";
-  const sameFamily = newSpec.family === oldSpec.family;
+  // Cross-shape reformat (REFLOW) is disabled for now — it needs Auto Layout and
+  // breaks without it. Only same-family scaling (e.g. 9:16 → 300×600 = SCALE) is allowed.
+  if (newSpec.family !== oldSpec.family){
+    alert("Reformat między różnymi kształtami jest na razie wyłączony.");
+    return;
+  }
   reformatInFlight = true;
   document.querySelectorAll(".reformat-sel,.changetpl-sel").forEach(s=>s.disabled=true);
   const frame = card.querySelector(".frame");
-  const ov = document.createElement("div"); ov.className="ovl"; ov.innerHTML = sameFamily ? '<div class="spin"></div> Reformatuję…' : '<div class="spin"></div> Nowa scena…'; frame.appendChild(ov);
+  const ov = document.createElement("div"); ov.className="ovl"; ov.innerHTML = '<div class="spin"></div> Reformatuję…'; frame.appendChild(ov);
   try{
-    let sceneUrl;
-    if (sameFamily && job.sceneUrl){ sceneUrl = job.sceneUrl; }
-    else {
-      const newAspect = newSpec.family==="html"||newSpec.family==="vertical" ? "9:16" : newSpec.family==="square" ? "1:1" : "16:9";
-      if (uploadedProducts.length){
-        const sr = await fetch("/generate-scenes", { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({ products:uploadedProducts.slice(0,4).map(p=>({name:p.name,dataUrl:p.dataUrl})), targetGroup:document.getElementById("banTargetGroup").value.trim(), count:1, aspectRatio:newAspect, styleReferenceUrl:job.sceneUrl||null }) });
-        const sd = await sr.json(); if (!sr.ok) throw new Error(sd.error||"Scene failed"); sceneUrl = (sd.scenes||[])[0] || job.sceneUrl;
-      } else sceneUrl = job.sceneUrl;
-    }
+    const sceneUrl = job.sceneUrl;   // same family → reuse the scene (no new AI scene, no REFLOW)
     const endpoint = isHtml ? "/render-9x16" : "/render-banner";
     const body = { copy:job.copy, sceneUrl, logoDataUrl:uploadedLogo?.dataUrl||"", settings:getSettings(), targetWidth:newSpec.w, targetHeight:newSpec.h };
     if (!isHtml) body.templateId = newTemplateId;
