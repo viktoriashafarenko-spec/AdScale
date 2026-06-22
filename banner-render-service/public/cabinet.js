@@ -596,14 +596,8 @@ async function reformatBanner(card, value){
   if (reformatInFlight){ alert("Inny reformat trwa — poczekaj."); return; }
   const job = renderedJobs.get(card); if (!job) return;
   const [newFormat, newTemplateId] = value.split("|");
-  const newSpec = getFormatSpec(newFormat), oldSpec = getFormatSpec(job.format);
+  const newSpec = getFormatSpec(newFormat);
   const isHtml = newSpec.family === "html";
-  // Cross-shape reformat (REFLOW) is disabled for now — it needs Auto Layout and
-  // breaks without it. Only same-family scaling (e.g. 9:16 → 300×600 = SCALE) is allowed.
-  if (newSpec.family !== oldSpec.family){
-    alert("Reformat między różnymi kształtami jest na razie wyłączony.");
-    return;
-  }
   reformatInFlight = true;
   document.querySelectorAll(".reformat-sel,.changetpl-sel").forEach(s=>s.disabled=true);
   const frame = card.querySelector(".frame");
