@@ -368,7 +368,7 @@ function renderFlexChild(node, ctx, ancestorCtaOverride, parentLayoutMode, isTop
       fitAttr = " data-fit";
     }
     const text =
-      ancestorCtaOverride !== null && (lowerName === "sprawdź" || lowerName === "cta")
+      ancestorCtaOverride !== null
         ? ancestorCtaOverride
         : resolveText(node, ctx.copy);
     return `<div${fitAttr} data-slot="${escapeHtml(lowerName)}" style="${styleString(style)}">${escapeHtml(text)}</div>`;

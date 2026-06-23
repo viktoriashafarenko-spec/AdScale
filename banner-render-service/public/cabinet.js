@@ -464,6 +464,8 @@ function renderCopy(){
       <div class="head">${esc(v.headline)}</div>
       <div class="sub">${esc(v.subheadline)}</div>
       <span class="cta">${esc(v.cta)}</span>
+      <div class="sub" style="margin-top:8px;"><b>Badge:</b> ${esc(v.promo||'')}</div>
+      <div class="sub" style="font-size:11px;color:var(--muted);"><b>Legal:</b> ${esc(v.legal||'')}</div>
       <button class="copy-edit" onclick="editCopy(${i})">Edytuj</button>
     </div>`).join("");
 }
@@ -473,14 +475,18 @@ function editCopy(i){
     v.headline = c.querySelector('[data-f=head]').value;
     v.subheadline = c.querySelector('[data-f=sub]').value;
     v.cta = c.querySelector('[data-f=cta]').value;
+    v.promo = c.querySelector('[data-f=promo]').value;
+    v.legal = c.querySelector('[data-f=legal]').value;
     c.classList.remove("editing");
-    c.innerHTML = `<div class="vt">Wariant ${i+1}</div><div class="head">${esc(v.headline)}</div><div class="sub">${esc(v.subheadline)}</div><span class="cta">${esc(v.cta)}</span><button class="copy-edit" onclick="editCopy(${i})">Edytuj</button>`;
+    c.innerHTML = `<div class="vt">Wariant ${i+1}</div><div class="head">${esc(v.headline)}</div><div class="sub">${esc(v.subheadline)}</div><span class="cta">${esc(v.cta)}</span><div class="sub" style="margin-top:8px;"><b>Badge:</b> ${esc(v.promo||'')}</div><div class="sub" style="font-size:11px;color:var(--muted);"><b>Legal:</b> ${esc(v.legal||'')}</div><button class="copy-edit" onclick="editCopy(${i})">Edytuj</button>`;
   } else {
     c.classList.add("editing");
     c.innerHTML = `<div class="vt">Wariant ${i+1}</div>
       <span class="fld-lbl">Nagłówek</span><textarea class="fld-edit" data-f="head" rows="2">${esc(v.headline)}</textarea>
       <span class="fld-lbl">Subheadline</span><textarea class="fld-edit" data-f="sub" rows="2">${esc(v.subheadline)}</textarea>
       <span class="fld-lbl">CTA</span><input class="fld-edit" data-f="cta" value="${esc(v.cta)}">
+      <span class="fld-lbl">Tekst na badge</span><input class="fld-edit" data-f="promo" value="${esc(v.promo||'')}">
+      <span class="fld-lbl">Legal</span><textarea class="fld-edit" data-f="legal" rows="2">${esc(v.legal||'')}</textarea>
       <button class="copy-edit" onclick="editCopy(${i})">Zapisz</button>`;
   }
 }
