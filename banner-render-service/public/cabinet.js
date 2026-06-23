@@ -55,9 +55,9 @@ function fileToDataURL(file){ return new Promise((res,rej)=>{ const r=new FileRe
 function blobToDataURL(blob){ return new Promise((res,rej)=>{ const r=new FileReader(); r.onloadend=()=>res(r.result); r.onerror=rej; r.readAsDataURL(blob); }); }
 function normalizeName(fn="", i=1){
   const raw = String(fn).replace(/\.[^.]+$/, "").trim();
-  if (/^screenshot/i.test(raw) || /^img[_ -]?\d+/i.test(raw) || raw.length < 3) return `Produkt ${i}`;
+  if (/^screenshot/i.test(raw) || /^img[_ -]?\d+/i.test(raw) || raw.length < 3) return `Product ${i}`;
   const c = raw.replace(/[0-9]{4}[-_ ]?[0-9]{2}[-_ ]?[0-9]{2}.*/i, "").replace(/[_-]+/g, " ").trim();
-  return c || `Produkt ${i}`;
+  return c || `Product ${i}`;
 }
 function show(id){ document.getElementById(id).classList.remove("hidden"); }
 function hide(id){ document.getElementById(id).classList.add("hidden"); }
@@ -95,11 +95,11 @@ document.getElementById("productInput").addEventListener("change", async (e)=>{
   }
   e.target.value = "";
   renderProducts();
-  if (skipped) alert(`Maksymalnie ${MAX_PRODUCTS} produkty w jednej scenie — pominięto ${skipped}.`);
+  if (skipped) alert(`Up to ${MAX_PRODUCTS} products in one scene — skipped ${skipped}.`);
 });
 function renderProducts(){
   const g = document.getElementById("productList");
-  const head = uploadedProducts.length ? `<div class="muted" style="grid-column:1/-1;margin:2px 0;">Produkty w scenie: <b>${uploadedProducts.length}/${MAX_PRODUCTS}</b></div>` : "";
+  const head = uploadedProducts.length ? `<div class="muted" style="grid-column:1/-1;margin:2px 0;">Products in scene: <b>${uploadedProducts.length}/${MAX_PRODUCTS}</b></div>` : "";
   g.innerHTML = head + uploadedProducts.map(p => `
     <div class="up-card">
       <button class="x" onclick="removeProduct('${p.id}')">×</button>
@@ -124,7 +124,7 @@ const DEMO_FEED = [
 ];
 function connectFeed(){
   const g = document.getElementById("feedGrid"), st = document.getElementById("feedStatus");
-  st.textContent = ""; g.innerHTML = `<div class="loading"><div class="spin"></div> Pobieram i parsuję fid…</div>`;
+  st.textContent = ""; g.innerHTML = `<div class="loading"><div class="spin"></div> Fetching and parsing feed…</div>`;
   setTimeout(()=>{
     g.innerHTML = DEMO_FEED.map((p,i)=>`
       <div class="up-card feed-card" data-i="${i}" onclick="pickFeedProduct(${i})">
@@ -140,7 +140,7 @@ async function pickFeedProduct(i){
   if (uploadedProducts.find(x=>x.id===id)){
     uploadedProducts = uploadedProducts.filter(x=>x.id!==id);
   } else {
-    if (uploadedProducts.length >= MAX_PRODUCTS){ alert(`Maksymalnie ${MAX_PRODUCTS} produkty w jednej scenie.`); return; }
+    if (uploadedProducts.length >= MAX_PRODUCTS){ alert(`Up to ${MAX_PRODUCTS} products in one scene.`); return; }
     const u = await blobToDataURL(await fetch(p.img).then(r=>r.blob()));
     uploadedProducts.push({ id, fileName:p.name, name:p.name, dataUrl:u });
   }
@@ -150,8 +150,8 @@ function syncFeedSel(){
   document.querySelectorAll("#feedGrid .feed-card").forEach(c=>c.classList.toggle("sel", !!uploadedProducts.find(x=>x.id==="feed"+c.dataset.i)));
   const st = document.getElementById("feedStatus");
   if (st) st.innerHTML = uploadedProducts.length
-    ? `W scenie: <b>${uploadedProducts.length}/${MAX_PRODUCTS}</b> produktów (klik, by dodać / usunąć).`
-    : `Wybierz produkty z katalogu (do ${MAX_PRODUCTS} w jednej scenie).`;
+    ? `In scene: <b>${uploadedProducts.length}/${MAX_PRODUCTS}</b> products (click to add / remove).`
+    : `Pick products from the catalog (up to ${MAX_PRODUCTS} in one scene).`;
 }
 
 const logoInput = document.getElementById("logoInput");
@@ -168,12 +168,12 @@ if (logoInput){
    This module currently SIMULATES the style × variation matrix so the UI is reviewable;
    swap the setTimeout block for a fetch to /generate-packshots to go live. */
 const STYLES = [
-  { key:"studio",      label:"Na jednolitym tle",   img:"img/styles/studio.png" },
-  { key:"in_water",    label:"W wodzie",            img:"img/styles/in_water.png" },
-  { key:"in_hand",     label:"W dłoni",             img:"img/styles/in_hand.png" },
-  { key:"with_person", label:"Z osobą / aplikacja", img:"img/styles/with_person.png" },
-  { key:"interior",    label:"W aranżacji",         img:"img/styles/interior.png" },
-  { key:"custom",      label:"Własny prompt",       img:null }
+  { key:"studio",      label:"On a plain background",  img:"img/styles/studio.png" },
+  { key:"in_water",    label:"In water",               img:"img/styles/in_water.png" },
+  { key:"in_hand",     label:"In hand",                img:"img/styles/in_hand.png" },
+  { key:"with_person", label:"With a person / application", img:"img/styles/with_person.png" },
+  { key:"interior",    label:"In a setting",           img:"img/styles/interior.png" },
+  { key:"custom",      label:"Custom prompt",          img:null }
 ];
 const STYLE_IMAGES = {
   studio:["img/styles/studio.png"],
@@ -230,11 +230,11 @@ const VARIATION_SUFFIX = [
 const ANTI_HALLUCINATION = "CRITICAL PRODUCT FIDELITY: Use ONLY the exact product(s) shown in the attached reference image(s). Reproduce every product's packaging, box shape, logo, label text and colours EXACTLY as in the reference. Do NOT invent, add, swap or imagine ANY other products — every single product visible in the output must be one of the attached references and nothing else. If multiple products are attached, include all of them and only them.";
 
 async function genImages(){
-  if (!uploadedProducts.length){ alert("Wgraj najpierw produkt."); return; }
+  if (!uploadedProducts.length){ alert("Upload a product first."); return; }
   const styles = [...document.querySelectorAll('#styleGrid .style-card.active')].map(c=>c.dataset.style);
-  if (!styles.length){ alert("Zaznacz przynajmniej jeden styl."); return; }
+  if (!styles.length){ alert("Select at least one style."); return; }
   const customText = document.getElementById("customPrompt").value.trim();
-  if (styles.includes("custom") && !customText){ alert("Wpisz własny prompt albo odznacz „Własny prompt”."); return; }
+  if (styles.includes("custom") && !customText){ alert("Enter a custom prompt or deselect „Custom prompt”."); return; }
   const vars = parseInt(document.getElementById("genVars").value,10) || 4;
   const fmt = document.getElementById("genFormat").value;
   const quality = document.getElementById("genQuality").value;
@@ -250,9 +250,9 @@ async function genImages(){
   });
 
   const btn = document.getElementById("btnGenImg");
-  btn.disabled = true; btn.textContent = "Generuję…";
+  btn.disabled = true; btn.textContent = "Generating…";
   show("imgResCard"); show("imgLoading"); hide("imgGrid"); setErr("imgErr","");
-  document.getElementById("imgLoading").innerHTML = `<div class="spin"></div> Generuję ${matrix.length} ${matrix.length===1?"scenę":"scen"}… (${prods.length} prod. × ${fmt} · ${quality}, to może potrwać kilka minut)`;
+  document.getElementById("imgLoading").innerHTML = `<div class="spin"></div> Generating ${matrix.length} ${matrix.length===1?"scene":"scenes"}… (${prods.length} prod. × ${fmt} · ${quality}, this may take a few minutes)`;
   try{
     const res = await fetch("/generate-scenes", {
       method:"POST", headers:{"Content-Type":"application/json"},
@@ -266,19 +266,19 @@ async function genImages(){
       })
     });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || "Generacja nie powiodła się");
+    if (!res.ok) throw new Error(data.error || "Generation failed");
     const scenes = data.scenes || [];
-    if (!scenes.length) throw new Error("Brak wygenerowanych obrazów");
+    if (!scenes.length) throw new Error("No images generated");
     generatedScenes = [];
-    scenes.forEach((url,i)=>{ generatedScenes.push({ url, aspect:fmt, label:(matrix[i] && matrix[i].label) || "scena", prompt:(matrix[i] && matrix[i].text) || "" }); savedImages.push({ url }); });
+    scenes.forEach((url,i)=>{ generatedScenes.push({ url, aspect:fmt, label:(matrix[i] && matrix[i].label) || "scene", prompt:(matrix[i] && matrix[i].text) || "" }); savedImages.push({ url }); });
     hide("imgLoading");
     document.getElementById("imgGrid").classList.remove("hidden");
-    document.getElementById("imgCount").textContent = `— ${scenes.length} scen · ${styles.length} styl(e) × ${vars} · ${prods.length} prod. · ${fmt} · ${quality}`;
+    document.getElementById("imgCount").textContent = `— ${scenes.length} scenes · ${styles.length} style(s) × ${vars} · ${prods.length} prod. · ${fmt} · ${quality}`;
     renderGenGrid();
   }catch(err){
-    console.error(err); hide("imgLoading"); setErr("imgErr", `Błąd: ${err.message}`);
+    console.error(err); hide("imgLoading"); setErr("imgErr", `Error: ${err.message}`);
   }finally{
-    btn.disabled = false; btn.textContent = "Generuj obrazy →";
+    btn.disabled = false; btn.textContent = "Generate images →";
   }
 }
 function renderGenGrid(){
@@ -291,15 +291,15 @@ function renderGenGrid(){
         <div class="gen-busy hidden"><div class="spin"></div></div>
       </div>
       <div class="gen-tools">
-        <button class="b" onclick="useScene(${i})">Użyj</button>
-        <button onclick="regenScene(${i})" title="Wygeneruj inny wariant">↻</button>
-        <button onclick="toggleSceneEdit(${i})" title="Edytuj promptem">✎</button>
-        <button onclick="saveScene(${i},this)" title="Zapisz w bibliotece">💾</button>
+        <button class="b" onclick="useScene(${i})">Use</button>
+        <button onclick="regenScene(${i})" title="Generate another variant">↻</button>
+        <button onclick="toggleSceneEdit(${i})" title="Edit with a prompt">✎</button>
+        <button onclick="saveScene(${i},this)" title="Save to library">💾</button>
         <a href="${esc(s.url)}" target="_blank" download>PNG</a>
       </div>
       <div class="gen-edit hidden" id="genedit-${i}">
-        <input type="text" placeholder="np. usuń listek, cieplejsze tło, mniej cienia" onkeydown="if(event.key==='Enter')applySceneEdit(${i})">
-        <button onclick="applySceneEdit(${i})">Zastosuj</button>
+        <input type="text" placeholder="e.g. remove the leaf, warmer background, less shadow" onkeydown="if(event.key==='Enter')applySceneEdit(${i})">
+        <button onclick="applySceneEdit(${i})">Apply</button>
       </div>
     </div>`).join("");
 }
@@ -312,7 +312,7 @@ function toggleSceneEdit(i){ const b=document.getElementById("genedit-"+i); if(!
 async function regenScene(i){
   const s=generatedScenes[i]; if(!s) return;
   const prods=uploadedProducts.slice(0,MAX_PRODUCTS);
-  if(!prods.length){ alert("Brak produktu w pamięci — wygeneruj od nowa."); return; }
+  if(!prods.length){ alert("No product in memory — generate again."); return; }
   setSceneBusy(i,true);
   try{
     const res=await fetch("/generate-scenes",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
@@ -320,10 +320,10 @@ async function regenScene(i){
       prompts:[{label:s.label,text:s.prompt||""}],
       aspectRatio:s.aspect, imageSize:document.getElementById("genQuality").value, client:CLIENT_ID, composition:false
     })});
-    const data=await res.json(); if(!res.ok) throw new Error(data.error||"Regeneracja nie powiodła się");
-    const url=(data.scenes||[])[0]; if(!url) throw new Error("Brak obrazu");
+    const data=await res.json(); if(!res.ok) throw new Error(data.error||"Regeneration failed");
+    const url=(data.scenes||[])[0]; if(!url) throw new Error("No image");
     s.url=url; savedImages.push({url}); swapSceneImg(i,url);
-  }catch(err){ console.error(err); alert("Nie udało się: "+err.message); }
+  }catch(err){ console.error(err); alert("Failed: "+err.message); }
   finally{ setSceneBusy(i,false); }
 }
 
@@ -337,11 +337,11 @@ async function applySceneEdit(i){
     const res=await fetch("/edit-scene",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
       imageUrl:s.url, prompt:instruction, aspectRatio:s.aspect, imageSize:document.getElementById("genQuality").value, client:CLIENT_ID
     })});
-    const data=await res.json(); if(!res.ok) throw new Error(data.error||"Edycja nie powiodła się");
-    if(!data.url) throw new Error("Brak obrazu");
+    const data=await res.json(); if(!res.ok) throw new Error(data.error||"Edit failed");
+    if(!data.url) throw new Error("No image");
     s.url=data.url; savedImages.push({url:data.url}); swapSceneImg(i,data.url);
     box.classList.add("hidden"); inp.value="";
-  }catch(err){ console.error(err); alert("Nie udało się edytować: "+err.message); }
+  }catch(err){ console.error(err); alert("Failed to edit: "+err.message); }
   finally{ setSceneBusy(i,false); }
 }
 
@@ -353,8 +353,8 @@ async function saveScene(i, btn){
       client:CLIENT_ID, kind:"image", sourceUrl:s.url, meta:{ label:s.label, format:s.aspect }
     })});
     const data=await res.json(); if(!res.ok) throw new Error(data.error||"Save failed");
-    btn.textContent="✓"; btn.title="Zapisano w bibliotece";
-  }catch(err){ console.error(err); alert("Nie udało się zapisać: "+err.message); btn.textContent=orig; btn.disabled=false; }
+    btn.textContent="✓"; btn.title="Saved to library";
+  }catch(err){ console.error(err); alert("Failed to save: "+err.message); btn.textContent=orig; btn.disabled=false; }
 }
 
 /* fullscreen image viewer */
@@ -364,7 +364,7 @@ function closeLightbox(){ const lb=document.getElementById("lightbox"); if(lb) l
 /* use a saved image from the library directly in banner creation */
 function useSavedScene(url, format){
   let i = generatedScenes.findIndex(s=>s.url===url);
-  if (i<0){ generatedScenes.push({ url, aspect: format||"1:1", label:"zapisany" }); }
+  if (i<0){ generatedScenes.push({ url, aspect: format||"1:1", label:"saved" }); }
   pickedSceneUrl = url;
   showView("banners");
 }
@@ -376,7 +376,7 @@ async function ensureTemplates(){
   try{
     const res = await fetch("/templates");
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || "Nie udało się załadować szablonów");
+    if (!res.ok) throw new Error(data.error || "Failed to load templates");
     // Main version scoped to the 9:16 vertical master only; 300×600 is the single
     // reformat surface for practising the rule-based layout swap.
     availableTemplates = (data.templates || []).filter(t => templateFamily(t) === "vertical");
@@ -389,7 +389,7 @@ async function ensureTemplates(){
 function renderTpl(){
   const row = document.getElementById("tplRow");
   const visible = availableTemplates;
-  if (!visible.length){ row.innerHTML = `<div class="muted">Brak szablonów.</div>`; return; }
+  if (!visible.length){ row.innerHTML = `<div class="muted">No templates.</div>`; return; }
   row.innerHTML = visible.map(t => `
     <div class="tpl ${selectedTemplateIds.has(t.id)?'sel':''}" onclick="toggleTpl('${esc(t.id)}')">
       ${t.backgroundUrl ? `<img class="thumb" src="${esc(t.backgroundUrl)}">` : `<div class="thumb"></div>`}
@@ -405,7 +405,7 @@ async function loadLibrary(){
   try{
     const res = await fetch(`/library?client=${encodeURIComponent(CLIENT_ID)}`);
     const d = await res.json();
-    libraryImages = (d.images||[]).map(s=>({ url:s.url, label:(s.meta&&s.meta.label)||"zapisany" }));
+    libraryImages = (d.images||[]).map(s=>({ url:s.url, label:(s.meta&&s.meta.label)||"saved" }));
   }catch(_){ libraryImages = []; }
 }
 async function renderPick(){
@@ -413,10 +413,10 @@ async function renderPick(){
   await loadLibrary();
   const sessionUrls = new Set(generatedScenes.map(s=>s.url));
   const all = [
-    ...generatedScenes.map(s=>({ url:s.url, src:"sesja" })),
-    ...libraryImages.filter(s=>!sessionUrls.has(s.url)).map(s=>({ url:s.url, src:"biblioteka" }))
+    ...generatedScenes.map(s=>({ url:s.url, src:"session" })),
+    ...libraryImages.filter(s=>!sessionUrls.has(s.url)).map(s=>({ url:s.url, src:"library" }))
   ];
-  if (!all.length){ g.innerHTML = `<div class="muted">Brak obrazów. Wygeneruj w „Generacja obrazów" lub zapisz do biblioteki (💾).</div>`; return; }
+  if (!all.length){ g.innerHTML = `<div class="muted">No images. Generate in „Image generation" or save to the library (💾).</div>`; return; }
   if (!pickedSceneUrl || !all.some(s=>s.url===pickedSceneUrl)) pickedSceneUrl = all[0].url;
   g.innerHTML = all.map(s=>`
     <div class="pick ${s.url===pickedSceneUrl?'sel':''}" data-url="${esc(s.url)}" onclick="selPick('${esc(s.url)}')">
@@ -434,7 +434,7 @@ function refreshLibrary(){ libraryImages = []; renderPick(); }
 /* ----- copy (real /generate-copy) ----- */
 async function genCopy(){
   const btn = document.getElementById("btnCopy");
-  btn.disabled = true; btn.textContent = "Generuję…";
+  btn.disabled = true; btn.textContent = "Generating…";
   show("copyCard"); show("copyLoading"); hide("copyGrid"); hide("copyActions"); setErr("copyErr","");
   try{
     const res = await fetch("/generate-copy", {
@@ -451,22 +451,22 @@ async function genCopy(){
     generatedVariants = [0,1,2].map(i => ({ headline:headlines[i]||"", subheadline:subs[i]||"", cta:ctas[i]||"", promo:promos[i]||"", legal:legals[i]||"" }));
     hide("copyLoading"); renderCopy(); show("copyActions");
   }catch(err){
-    console.error(err); hide("copyLoading"); setErr("copyErr", `Błąd: ${err.message}`);
+    console.error(err); hide("copyLoading"); setErr("copyErr", `Error: ${err.message}`);
   }finally{
-    btn.disabled = false; btn.textContent = "Generuj copy →";
+    btn.disabled = false; btn.textContent = "Generate copy →";
   }
 }
 function renderCopy(){
   const g = document.getElementById("copyGrid"); g.classList.remove("hidden");
   g.innerHTML = generatedVariants.map((v,i)=>`
     <div class="copy" id="copy-${i}" style="animation-delay:${i*0.08}s">
-      <div class="vt">Wariant ${i+1}</div>
+      <div class="vt">Variant ${i+1}</div>
       <div class="head">${esc(v.headline)}</div>
       <div class="sub">${esc(v.subheadline)}</div>
       <span class="cta">${esc(v.cta)}</span>
       <div class="sub" style="margin-top:8px;"><b>Badge:</b> ${esc(v.promo||'')}</div>
       <div class="sub" style="font-size:11px;color:var(--muted);"><b>Legal:</b> ${esc(v.legal||'')}</div>
-      <button class="copy-edit" onclick="editCopy(${i})">Edytuj</button>
+      <button class="copy-edit" onclick="editCopy(${i})">Edit</button>
     </div>`).join("");
 }
 function editCopy(i){
@@ -478,16 +478,16 @@ function editCopy(i){
     v.promo = c.querySelector('[data-f=promo]').value;
     v.legal = c.querySelector('[data-f=legal]').value;
     c.classList.remove("editing");
-    c.innerHTML = `<div class="vt">Wariant ${i+1}</div><div class="head">${esc(v.headline)}</div><div class="sub">${esc(v.subheadline)}</div><span class="cta">${esc(v.cta)}</span><div class="sub" style="margin-top:8px;"><b>Badge:</b> ${esc(v.promo||'')}</div><div class="sub" style="font-size:11px;color:var(--muted);"><b>Legal:</b> ${esc(v.legal||'')}</div><button class="copy-edit" onclick="editCopy(${i})">Edytuj</button>`;
+    c.innerHTML = `<div class="vt">Variant ${i+1}</div><div class="head">${esc(v.headline)}</div><div class="sub">${esc(v.subheadline)}</div><span class="cta">${esc(v.cta)}</span><div class="sub" style="margin-top:8px;"><b>Badge:</b> ${esc(v.promo||'')}</div><div class="sub" style="font-size:11px;color:var(--muted);"><b>Legal:</b> ${esc(v.legal||'')}</div><button class="copy-edit" onclick="editCopy(${i})">Edit</button>`;
   } else {
     c.classList.add("editing");
-    c.innerHTML = `<div class="vt">Wariant ${i+1}</div>
-      <span class="fld-lbl">Nagłówek</span><textarea class="fld-edit" data-f="head" rows="2">${esc(v.headline)}</textarea>
+    c.innerHTML = `<div class="vt">Variant ${i+1}</div>
+      <span class="fld-lbl">Headline</span><textarea class="fld-edit" data-f="head" rows="2">${esc(v.headline)}</textarea>
       <span class="fld-lbl">Subheadline</span><textarea class="fld-edit" data-f="sub" rows="2">${esc(v.subheadline)}</textarea>
       <span class="fld-lbl">CTA</span><input class="fld-edit" data-f="cta" value="${esc(v.cta)}">
-      <span class="fld-lbl">Tekst na badge</span><input class="fld-edit" data-f="promo" value="${esc(v.promo||'')}">
+      <span class="fld-lbl">Badge text</span><input class="fld-edit" data-f="promo" value="${esc(v.promo||'')}">
       <span class="fld-lbl">Legal</span><textarea class="fld-edit" data-f="legal" rows="2">${esc(v.legal||'')}</textarea>
-      <button class="copy-edit" onclick="editCopy(${i})">Zapisz</button>`;
+      <button class="copy-edit" onclick="editCopy(${i})">Save</button>`;
   }
 }
 
@@ -498,10 +498,10 @@ function banClass(spec){
   return "ban";
 }
 async function genBanners(){
-  if (reformatInFlight){ alert("Poczekaj, aż zakończy się bieżąca operacja."); return; }
-  if (!generatedVariants.length){ alert("Najpierw wygeneruj copy."); return; }
-  if (!pickedSceneUrl){ alert("Wybierz obraz w sekcji 2."); return; }
-  if (!selectedTemplateIds.size){ alert("Zaznacz przynajmniej jeden szablon."); return; }
+  if (reformatInFlight){ alert("Please wait for the current operation to finish."); return; }
+  if (!generatedVariants.length){ alert("Generate copy first."); return; }
+  if (!pickedSceneUrl){ alert("Pick an image in section 2."); return; }
+  if (!selectedTemplateIds.size){ alert("Select at least one template."); return; }
 
   show("banCard"); show("banLoading"); hide("banGrid"); setErr("banErr","");
 
@@ -514,7 +514,7 @@ async function genBanners(){
   await Promise.all(jobs.map((job,i)=>{
     const card = document.querySelector(`#banGrid [data-ji="${i}"]`);
     return renderJob(card, job).catch(err=>{
-      const ov = card.querySelector(".ovl"); if (ov) ov.innerHTML = `Błąd: ${esc(err.message)}`;
+      const ov = card.querySelector(".ovl"); if (ov) ov.innerHTML = `Error: ${esc(err.message)}`;
     });
   }));
 }
@@ -535,7 +535,7 @@ function renderSkeletons(jobs){
   const g = document.getElementById("banGrid"); g.classList.remove("hidden");
   g.innerHTML = jobs.map((job,i)=>`
     <div class="${banClassFor(job)}" data-ji="${i}">
-      <div class="frame"><div class="ovl"><div class="spin"></div> Renderuję…</div></div>
+      <div class="frame"><div class="ovl"><div class="spin"></div> Rendering…</div></div>
       <div class="meta"><b>${esc(job.templateName)}</b> · <span class="fmt">${job.w}×${job.h}</span></div>
       <div class="tools"></div>
       <div class="editbox hidden"></div>
@@ -557,14 +557,14 @@ function paintBanner(card, job, format, url){
   const fname = `${safe}-v${job.variantIndex+1}.png`;
   const tools = card.querySelector(".tools");
   tools.innerHTML = `
-    <select class="reformat-sel" onchange="onReformat(this)"><option value="" disabled selected>Reformatuj…</option></select>
-    <select class="changetpl-sel" onchange="onChangeTpl(this)"><option value="" disabled selected>Zmień szablon…</option></select>
-    <button class="mini edit" onclick="editText(this)">Edytuj tekst</button>
-    <button class="mini edit" onclick="editComp(this)">Edytuj kompozycję</button>
-    <button class="mini edit" onclick="editBg(this)">Edytuj tło</button>
+    <select class="reformat-sel" onchange="onReformat(this)"><option value="" disabled selected>Reformat…</option></select>
+    <select class="changetpl-sel" onchange="onChangeTpl(this)"><option value="" disabled selected>Change template…</option></select>
+    <button class="mini edit" onclick="editText(this)">Edit text</button>
+    <button class="mini edit" onclick="editComp(this)">Edit layout</button>
+    <button class="mini edit" onclick="editBg(this)">Edit background</button>
     <a class="mini" href="${url}" download="${fname}">PNG</a>
     <button class="mini" onclick="dlHtml5(this)">HTML5</button>
-    <button class="mini edit" onclick="saveBanner(this)">💾 Zapisz</button>`;
+    <button class="mini edit" onclick="saveBanner(this)">💾 Save</button>`;
   renderedJobs.set(card, { ...job, downloadName:fname });
   populateReformat(card, format, job.templateId);
 }
@@ -592,15 +592,15 @@ function buildChangeTemplateOptions(currentFormat, currentTemplateId){
 }
 function populateReformat(card, format, templateId){
   const rf = card.querySelector(".reformat-sel");
-  if (rf){ const o = buildReformatOptions(format, templateId); rf.innerHTML = `<option value="" disabled selected>Reformatuj…</option>`+o.map(x=>`<option value="${esc(x.value)}">${esc(x.label)}</option>`).join(""); rf.style.display = o.length?"block":"none"; }
+  if (rf){ const o = buildReformatOptions(format, templateId); rf.innerHTML = `<option value="" disabled selected>Reformat…</option>`+o.map(x=>`<option value="${esc(x.value)}">${esc(x.label)}</option>`).join(""); rf.style.display = o.length?"block":"none"; }
   const ct = card.querySelector(".changetpl-sel");
-  if (ct){ const o = buildChangeTemplateOptions(format, templateId); ct.innerHTML = `<option value="" disabled selected>Zmień szablon…</option>`+o.map(x=>`<option value="${esc(x.value)}">${esc(x.label)}</option>`).join(""); ct.style.display = o.length?"block":"none"; }
+  if (ct){ const o = buildChangeTemplateOptions(format, templateId); ct.innerHTML = `<option value="" disabled selected>Change template…</option>`+o.map(x=>`<option value="${esc(x.value)}">${esc(x.label)}</option>`).join(""); ct.style.display = o.length?"block":"none"; }
 }
 function onReformat(sel){ const card = sel.closest("[data-ji]"); const v = sel.value; sel.selectedIndex = 0; if (v) reformatBanner(card, v); }
 function onChangeTpl(sel){ const card = sel.closest("[data-ji]"); const v = sel.value; sel.selectedIndex = 0; if (v) reformatBanner(card, v); }
 
 async function reformatBanner(card, value){
-  if (reformatInFlight){ alert("Inny reformat trwa — poczekaj."); return; }
+  if (reformatInFlight){ alert("Another reformat is in progress — please wait."); return; }
   const job = renderedJobs.get(card); if (!job) return;
   const [newFormat, newTemplateId] = value.split("|");
   const newSpec = getFormatSpec(newFormat);
@@ -608,7 +608,7 @@ async function reformatBanner(card, value){
   reformatInFlight = true;
   document.querySelectorAll(".reformat-sel,.changetpl-sel").forEach(s=>s.disabled=true);
   const frame = card.querySelector(".frame");
-  const ov = document.createElement("div"); ov.className="ovl"; ov.innerHTML = '<div class="spin"></div> Reformatuję…'; frame.appendChild(ov);
+  const ov = document.createElement("div"); ov.className="ovl"; ov.innerHTML = '<div class="spin"></div> Reformatting…'; frame.appendChild(ov);
   try{
     const sceneUrl = job.sceneUrl;   // same family → reuse the scene (no new AI scene, no REFLOW)
     const endpoint = isHtml ? "/render-9x16" : "/render-banner";
@@ -623,7 +623,7 @@ async function reformatBanner(card, value){
     card.querySelector(".fmt").textContent = `${newSpec.w}×${newSpec.h}`;
     card.querySelector(".meta b").textContent = newName;
     savedBanners.push({ url, format:newFormat, templateName:newName });
-  }catch(err){ ov.innerHTML = `Błąd: ${esc(err.message)}`; setTimeout(()=>ov.remove(), 2500); }
+  }catch(err){ ov.innerHTML = `Error: ${esc(err.message)}`; setTimeout(()=>ov.remove(), 2500); }
   finally{ reformatInFlight=false; document.querySelectorAll(".reformat-sel,.changetpl-sel").forEach(s=>s.disabled=false); }
 }
 
@@ -633,16 +633,16 @@ function editText(btn){
   const box = card.querySelector(".editbox");
   if (box.dataset.mode==="text"){ box.classList.add("hidden"); box.dataset.mode=""; return; }
   box.dataset.mode="text"; box.classList.remove("hidden");
-  box.innerHTML = `<label>Nagłówek</label><input data-e="headline" value="${esc(job.copy.headline)}">
+  box.innerHTML = `<label>Headline</label><input data-e="headline" value="${esc(job.copy.headline)}">
     <label>Subheadline</label><textarea data-e="subheadline" rows="2">${esc(job.copy.subheadline)}</textarea>
     <label>CTA</label><input data-e="cta" value="${esc(job.copy.cta)}">
-    <label>Rabat / zniżka</label><input data-e="promo" value="${esc(job.copy.promo)}">
-    <label>Tekst na badge</label><input data-e="badge" value="${esc(job.copy.badge||'')}">
+    <label>Discount</label><input data-e="promo" value="${esc(job.copy.promo)}">
+    <label>Badge text</label><input data-e="badge" value="${esc(job.copy.badge||'')}">
     <label>Legal / disclaimer</label><textarea data-e="legal" rows="2">${esc(job.copy.legal)}</textarea>
-    <button class="ap" onclick="applyText(this)">Zastosuj</button><button class="ca" onclick="this.closest('.editbox').classList.add('hidden')">Anuluj</button>`;
+    <button class="ap" onclick="applyText(this)">Apply</button><button class="ca" onclick="this.closest('.editbox').classList.add('hidden')">Cancel</button>`;
 }
 async function applyText(btn){
-  if (reformatInFlight){ alert("Poczekaj na zakończenie operacji."); return; }
+  if (reformatInFlight){ alert("Please wait for the operation to finish."); return; }
   const card = btn.closest("[data-ji]"); const job = renderedJobs.get(card); if (!job) return;
   const box = card.querySelector(".editbox");
   const copy = { ...job.copy,
@@ -653,7 +653,7 @@ async function applyText(btn){
     badge: box.querySelector('[data-e=badge]').value.trim(),
     legal: box.querySelector('[data-e=legal]').value.trim() };
   reformatInFlight = true; btn.disabled = true;
-  const frame = card.querySelector(".frame"); const ov = document.createElement("div"); ov.className="ovl"; ov.innerHTML='<div class="spin"></div> Renderuję…'; frame.appendChild(ov);
+  const frame = card.querySelector(".frame"); const ov = document.createElement("div"); ov.className="ovl"; ov.innerHTML='<div class="spin"></div> Rendering…'; frame.appendChild(ov);
   try{
     const spec = getFormatSpec(job.format); const isHtml = spec.family==="html";
     const endpoint = isHtml ? "/render-9x16" : "/render-banner";
@@ -664,16 +664,16 @@ async function applyText(btn){
     const url = URL.createObjectURL(await rr.blob());
     paintBanner(card, { ...job, copy }, job.format, url);
     savedBanners.push({ url, format:job.format, templateName:job.templateName });
-  }catch(err){ ov.innerHTML = `Błąd: ${esc(err.message)}`; setTimeout(()=>ov.remove(),2500); }
+  }catch(err){ ov.innerHTML = `Error: ${esc(err.message)}`; setTimeout(()=>ov.remove(),2500); }
   finally{ reformatInFlight=false; }
 }
 
 /* edit composition (drag slots → slotOverrides → re-render) */
 function editComp(btn){
   const card = btn.closest("[data-ji]"); const job = renderedJobs.get(card); if (!job) return;
-  if (getFormatSpec(job.format).family === "html"){ alert("Edycja kompozycji dostępna dla szablonów Figma."); return; }
+  if (getFormatSpec(job.format).family === "html"){ alert("Layout editing is available for Figma templates."); return; }
   const tpl = availableTemplates.find(t=>t.id===job.templateId);
-  if (!tpl || !tpl.slots){ alert("Brak danych układu dla tego szablonu."); return; }
+  if (!tpl || !tpl.slots){ alert("No layout data for this template."); return; }
   const frame = card.querySelector(".frame");
   if (frame.querySelector(".comp-ovl")){ frame.querySelector(".comp-ovl").remove(); const ex = card.querySelector(".comp-apply"); if (ex) ex.remove(); return; }
   const nW = tpl.width, nH = tpl.height;
@@ -688,7 +688,7 @@ function editComp(btn){
     dragSlot(d, ov, nW, nH, overrides, key); ov.appendChild(d);
   });
   frame.appendChild(ov);
-  const ap = document.createElement("button"); ap.className="mini edit comp-apply"; ap.textContent="Zastosuj układ"; ap.style.marginTop="6px";
+  const ap = document.createElement("button"); ap.className="mini edit comp-apply"; ap.textContent="Apply layout"; ap.style.marginTop="6px";
   ap.onclick = ()=> applyComp(card, overrides);
   card.querySelector(".tools").appendChild(ap);
 }
@@ -700,12 +700,12 @@ function dragSlot(el, overlay, nW, nH, overrides, key){
   el.addEventListener("pointerup",end); el.addEventListener("pointercancel",end);
 }
 async function applyComp(card, overrides){
-  if (reformatInFlight){ alert("Poczekaj na zakończenie operacji."); return; }
+  if (reformatInFlight){ alert("Please wait for the operation to finish."); return; }
   const job = renderedJobs.get(card); if (!job) return;
   reformatInFlight=true;
   const frame = card.querySelector(".frame"); const c = frame.querySelector(".comp-ovl"); if (c) c.remove();
   const ap = card.querySelector(".comp-apply"); if (ap) ap.remove();
-  const ov = document.createElement("div"); ov.className="ovl"; ov.innerHTML='<div class="spin"></div> Renderuję układ…'; frame.appendChild(ov);
+  const ov = document.createElement("div"); ov.className="ovl"; ov.innerHTML='<div class="spin"></div> Rendering layout…'; frame.appendChild(ov);
   try{
     const spec = getFormatSpec(job.format);
     const body = { templateId:job.templateId, copy:job.copy, sceneUrl:job.sceneUrl, logoDataUrl:uploadedLogo?.dataUrl||"", settings:getSettings(), slotOverrides:overrides, targetWidth:spec.w, targetHeight:spec.h };
@@ -714,7 +714,7 @@ async function applyComp(card, overrides){
     const url = URL.createObjectURL(await rr.blob());
     paintBanner(card, { ...job, slotOverrides:overrides }, job.format, url);
     savedBanners.push({ url, format:job.format, templateName:job.templateName });
-  }catch(err){ ov.innerHTML = `Błąd: ${esc(err.message)}`; setTimeout(()=>ov.remove(),2500); }
+  }catch(err){ ov.innerHTML = `Error: ${esc(err.message)}`; setTimeout(()=>ov.remove(),2500); }
   finally{ reformatInFlight=false; }
 }
 
@@ -739,18 +739,18 @@ function editBg(btn){
   const card = btn.closest("[data-ji]"); const job = renderedJobs.get(card); if (!job) return;
   const box = card.querySelector(".editbox");
   if (box.dataset.mode==="bg"){ bgEditClose(card); return; }
-  if (!job.sceneUrl){ alert("Ten baner nie ma osobnego tła do edycji."); return; }
+  if (!job.sceneUrl){ alert("This banner has no separate background to edit."); return; }
   ensureBgCss();
   box.dataset.mode="bg"; box.classList.remove("hidden");
   const t = job.bgTransform || { scale:1, x:0.5, y:0.5 };
   box.innerHTML = `
-    <label>Zoom tła: <span data-z>${(+t.scale).toFixed(2)}×</span></label>
+    <label>Background zoom: <span data-z>${(+t.scale).toFixed(2)}×</span></label>
     <input type="range" min="1" max="3" step="0.05" value="${t.scale}" data-bg="scale" oninput="bgLive(this)">
-    <label>Przesuń ← →</label>
+    <label>Move ← →</label>
     <input type="range" min="0" max="100" step="1" value="${Math.round(t.x*100)}" data-bg="x" oninput="bgLive(this)">
-    <label>Przesuń ↑ ↓</label>
+    <label>Move ↑ ↓</label>
     <input type="range" min="0" max="100" step="1" value="${Math.round(t.y*100)}" data-bg="y" oninput="bgLive(this)">
-    <button class="ap" onclick="applyBg(this)">Zastosuj tło</button><button class="ca" onclick="bgCancel(this)">Anuluj</button>`;
+    <button class="ap" onclick="applyBg(this)">Apply background</button><button class="ca" onclick="bgCancel(this)">Cancel</button>`;
   mountBgStage(card, job);
   bgLiveApply(card, +t.scale, +t.x, +t.y);
 }
@@ -764,7 +764,7 @@ function mountBgStage(card, job){
   stage.innerHTML =
     `<img class="bgl" src="${esc(job.sceneUrl)}" alt="">` +
     bgOverlayHtml(card, job) +
-    `<div class="bg-hint">Podgląd na żywo · „Zastosuj tło", aby zapisać</div>`;
+    `<div class="bg-hint">Live preview · „Apply background" to save</div>`;
   frame.innerHTML = "";
   frame.appendChild(stage);
 }
@@ -817,7 +817,7 @@ function bgEditClose(card){
   if (frame && src) frame.innerHTML = `<img src="${src}">`;   // restore the committed PNG
 }
 async function applyBg(btn){
-  if (reformatInFlight){ alert("Poczekaj na zakończenie operacji."); return; }
+  if (reformatInFlight){ alert("Please wait for the operation to finish."); return; }
   const card = btn.closest("[data-ji]"); const job = renderedJobs.get(card); if (!job) return;
   const box = card.querySelector(".editbox");
   const scale = parseFloat(box.querySelector('[data-bg=scale]').value) || 1;
@@ -825,7 +825,7 @@ async function applyBg(btn){
   const y = (parseInt(box.querySelector('[data-bg=y]').value,10) || 50) / 100;
   const bgTransform = { scale, x, y };
   reformatInFlight = true; btn.disabled = true;
-  const frame = card.querySelector(".frame"); const ov = document.createElement("div"); ov.className="ovl"; ov.innerHTML='<div class="spin"></div> Renderuję tło…'; frame.appendChild(ov);
+  const frame = card.querySelector(".frame"); const ov = document.createElement("div"); ov.className="ovl"; ov.innerHTML='<div class="spin"></div> Rendering background…'; frame.appendChild(ov);
   try{
     const body = { templateId: job.templateId, copy:job.copy, sceneUrl:job.sceneUrl, logoDataUrl:uploadedLogo?.dataUrl||"", settings:getSettings(), targetWidth: job.w, targetHeight: job.h, bgTransform };
     if (job.slotOverrides) body.slotOverrides = job.slotOverrides;
@@ -836,14 +836,14 @@ async function applyBg(btn){
     card.dataset.flatSrc = url;
     if (box){ box.classList.add("hidden"); box.dataset.mode=""; }
     savedBanners.push({ url, format: job.format, templateName: job.templateName });
-  }catch(err){ ov.innerHTML = `Błąd: ${esc(err.message)}`; setTimeout(()=>ov.remove(),2500); }
+  }catch(err){ ov.innerHTML = `Error: ${esc(err.message)}`; setTimeout(()=>ov.remove(),2500); }
   finally{ reformatInFlight=false; btn.disabled=false; }
 }
 
 /* HTML5 export */
 async function dlHtml5(btn){
   const card = btn.closest("[data-ji]"); const job = renderedJobs.get(card); if (!job) return;
-  const img = card.querySelector(".frame img"); if (!img){ alert("Baner nie jest gotowy."); return; }
+  const img = card.querySelector(".frame img"); if (!img){ alert("The banner is not ready."); return; }
   const spec = getFormatSpec(job.format);
   const base64 = await blobToDataURL(await fetch(img.src).then(r=>r.blob()));
   const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="ad.size" content="width=${spec.w},height=${spec.h}"><style>html,body{margin:0;padding:0}body{width:${spec.w}px;height:${spec.h}px;overflow:hidden}.l{display:block;width:100%;height:100%}.i{width:100%;height:100%;object-fit:cover;display:block;border:0}</style></head><body><a class="l" id="c" href="javascript:void(0)"><img class="i" src="${base64}"></a><script>var clickTag="https://www.drmax.pl/";document.getElementById("c").onclick=function(){window.open(clickTag,"_blank")}<\/script></body></html>`;
@@ -855,8 +855,8 @@ async function dlHtml5(btn){
 /* save a rendered banner into the client's library (GCS clients/<id>/banners) */
 async function saveBanner(btn){
   const card = btn.closest("[data-ji]"); const job = renderedJobs.get(card); if (!job) return;
-  const img = card.querySelector(".frame img"); if (!img || !img.src){ alert("Baner nie jest jeszcze gotowy."); return; }
-  const orig = btn.textContent; btn.disabled = true; btn.textContent = "Zapisuję…";
+  const img = card.querySelector(".frame img"); if (!img || !img.src){ alert("The banner is not ready yet."); return; }
+  const orig = btn.textContent; btn.disabled = true; btn.textContent = "Saving…";
   try{
     const dataUrl = await blobToDataURL(await fetch(img.src).then(r=>r.blob()));
     const spec = getFormatSpec(job.format);
@@ -866,9 +866,9 @@ async function saveBanner(btn){
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || "Save failed");
-    btn.textContent = "✓ Zapisano";
+    btn.textContent = "✓ Saved";
   }catch(err){
-    console.error(err); alert("Nie udało się zapisać: "+err.message);
+    console.error(err); alert("Failed to save: "+err.message);
     btn.textContent = orig; btn.disabled = false;
   }
 }
@@ -877,7 +877,7 @@ async function saveBanner(btn){
 async function renderSaved(){
   const gi = document.getElementById("galImages");
   const gb = document.getElementById("galBanners");
-  gi.innerHTML = `<div class="loading"><div class="spin"></div> Ładuję bibliotekę…</div>`;
+  gi.innerHTML = `<div class="loading"><div class="spin"></div> Loading library…</div>`;
   gb.innerHTML = "";
   try{
     const res = await fetch(`/library?client=${encodeURIComponent(CLIENT_ID)}`);
@@ -887,18 +887,18 @@ async function renderSaved(){
     gi.innerHTML = imgs.length
       ? imgs.map(s=>`<div class="item">
           <img src="${esc(s.url)}" style="cursor:zoom-in;" onclick="openLightbox(this.src)">
-          <div class="cap">${s.meta&&s.meta.label?`<b>${esc(s.meta.label)}</b>`:"<b>Obraz</b>"}${s.meta&&s.meta.format?` <span>· ${esc(s.meta.format)}</span>`:""}</div>
-          <button class="mini edit" style="width:100%;margin-top:5px;" onclick="useSavedScene('${esc(s.url)}','${esc((s.meta&&s.meta.format)||'1:1')}')">Użyj w banerze →</button>
+          <div class="cap">${s.meta&&s.meta.label?`<b>${esc(s.meta.label)}</b>`:"<b>Image</b>"}${s.meta&&s.meta.format?` <span>· ${esc(s.meta.format)}</span>`:""}</div>
+          <button class="mini edit" style="width:100%;margin-top:5px;" onclick="useSavedScene('${esc(s.url)}','${esc((s.meta&&s.meta.format)||'1:1')}')">Use in banner →</button>
         </div>`).join("")
-      : `<div class="muted">Brak zapisanych obrazów. W „Generacja obrazów" kliknij 💾 na obrazie.</div>`;
+      : `<div class="muted">No saved images. In „Image generation" click 💾 on an image.</div>`;
     gb.innerHTML = bans.length
       ? bans.map(b=>`<div class="item">
           <img src="${esc(b.url)}" style="cursor:zoom-in;" onclick="openLightbox(this.src)">
-          <div class="cap">${b.meta&&b.meta.format?`<span class="pill">${esc(b.meta.format)}</span><br>`:""}${b.meta&&b.meta.template?`<b>${esc(b.meta.template)}</b>`:"<b>Baner</b>"}</div>
+          <div class="cap">${b.meta&&b.meta.format?`<span class="pill">${esc(b.meta.format)}</span><br>`:""}${b.meta&&b.meta.template?`<b>${esc(b.meta.template)}</b>`:"<b>Banner</b>"}</div>
         </div>`).join("")
-      : `<div class="muted">Brak zapisanych banerów. Kliknij „💾 Zapisz" na banerze.</div>`;
+      : `<div class="muted">No saved banners. Click „💾 Save" on a banner.</div>`;
   }catch(err){
-    gi.innerHTML = `<div class="err">Błąd biblioteki: ${esc(err.message)}</div>`;
+    gi.innerHTML = `<div class="err">Library error: ${esc(err.message)}</div>`;
     gb.innerHTML = "";
   }
 }

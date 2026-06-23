@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="pl">
+<html lang="en">
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -178,71 +178,71 @@
       <div class="brand-sub">AdScale Studio</div>
     </div>
     <nav class="nav">
-      <div class="nav-grp">Moduły</div>
-      <div class="nav-item locked" title="Moduł zablokowany">📊&nbsp; Analityka <span class="lk">🔒</span></div>
-      <div class="nav-item active" data-view="images" onclick="showView('images')">🖼&nbsp; Generacja obrazów</div>
-      <div class="nav-item" data-view="banners" onclick="showView('banners')">🎨&nbsp; Tworzenie banerów</div>
-      <div class="nav-item" data-view="translate" onclick="showView('translate')">🌍&nbsp; Tłumaczenie <span class="soon">wkrótce</span></div>
-      <div class="nav-grp">Biblioteka</div>
-      <div class="nav-item" data-view="saved" onclick="showView('saved')">🗂&nbsp; Zapisane</div>
-      <div class="nav-item" data-view="brand" onclick="showView('brand')">⚙️&nbsp; Marka</div>
+      <div class="nav-grp">Modules</div>
+      <div class="nav-item locked" title="Module locked">📊&nbsp; Analytics <span class="lk">🔒</span></div>
+      <div class="nav-item active" data-view="images" onclick="showView('images')">🖼&nbsp; Image generation</div>
+      <div class="nav-item" data-view="banners" onclick="showView('banners')">🎨&nbsp; Banner creation</div>
+      <div class="nav-item" data-view="translate" onclick="showView('translate')">🌍&nbsp; Translation <span class="soon">soon</span></div>
+      <div class="nav-grp">Library</div>
+      <div class="nav-item" data-view="saved" onclick="showView('saved')">🗂&nbsp; Saved</div>
+      <div class="nav-item" data-view="brand" onclick="showView('brand')">⚙️&nbsp; Brand</div>
     </nav>
-    <div class="side-foot">Konto klienta · <b>Dr.Max</b><br>powered by <b>AdScale</b></div>
+    <div class="side-foot">Client account · <b>Dr.Max</b><br>powered by <b>AdScale</b></div>
   </aside>
 
   <main class="main">
     <!-- IMAGE GENERATION -->
     <div class="view" id="view-images">
-      <h1 class="page-h">Generacja obrazów</h1>
-      <p class="page-sub">Wgraj produkt (packshot), wybierz styl(e) i format — AI wygeneruje warianty z zachowaniem opakowania (logo, tekst). Każdy obraz użyjesz w banerze.</p>
+      <h1 class="page-h">Image generation</h1>
+      <p class="page-sub">Upload a product (packshot), choose style(s) and format — AI will generate variants while preserving the packaging (logo, text). You can use each image in a banner.</p>
 
-      <div class="note">✅ Silnik podłączony — generacja kompozycji produktów na scenie (Gemini 3 Pro Image). Środowisko testowe. Generacja realnie tworzy obrazy (kilka minut przy wielu wariantach).</div>
+      <div class="note">✅ Engine connected — generating product compositions in a scene (Gemini 3 Pro Image). Test environment. Generation really creates images (a few minutes for many variants).</div>
 
       <div class="card">
-        <h2><span class="num">1</span>Produkt</h2>
+        <h2><span class="num">1</span>Product</h2>
         <div class="tabs" id="prodTabs">
-          <button class="tab active" data-tab="upload" onclick="prodTab('upload')">Wgraj packshot</button>
-          <button class="tab" data-tab="feed" onclick="prodTab('feed')">Z fidu produktowego</button>
+          <button class="tab active" data-tab="upload" onclick="prodTab('upload')">Upload packshot</button>
+          <button class="tab" data-tab="feed" onclick="prodTab('feed')">From product feed</button>
         </div>
 
         <div id="prodUpload">
           <input id="productInput" type="file" accept="image/*" multiple />
-          <div class="muted" style="margin-top:6px;">Wgraj <b>do 4 produktów</b> — wszystkie trafią do <b>jednej sceny</b> (kompozycja). Packshoty zostają nienaruszone pikselowo, AI-filtr odrzuca kadry z przekłamanym logo. Styl marki z profilu <b>Marka</b>.</div>
+          <div class="muted" style="margin-top:6px;">Upload <b>up to 4 products</b> — all of them go into <b>one scene</b> (composition). Packshots stay pixel-perfect, the AI filter rejects shots with a distorted logo. Brand style comes from the <b>Brand</b> profile.</div>
           <div class="up-grid" id="productList"></div>
         </div>
 
         <div id="prodFeed" class="hidden">
-          <label class="lbl">URL fidu produktowego (XML / CSV — np. Google Merchant)</label>
+          <label class="lbl">Product feed URL (XML / CSV — e.g. Google Merchant)</label>
           <div style="display:flex;gap:8px;flex-wrap:wrap;">
             <input id="feedUrl" type="text" value="https://www.drmax.pl/feed/google-merchant.xml" style="flex:1;min-width:260px;">
-            <button class="btn ghost" onclick="connectFeed()">Połącz fid</button>
+            <button class="btn ghost" onclick="connectFeed()">Connect feed</button>
           </div>
-          <div class="muted" style="margin-top:6px;">Ten sam fid, którego używasz do reklam. Wybierz produkt z katalogu — jego packshot trafi do generacji.</div>
+          <div class="muted" style="margin-top:6px;">The same feed you use for ads. Pick a product from the catalog — its packshot goes into generation.</div>
           <div id="feedStatus" class="muted" style="margin-top:8px;"></div>
           <div id="feedGrid" class="up-grid"></div>
         </div>
       </div>
 
       <div class="card">
-        <h2><span class="num">2</span>Styl ujęcia</h2>
-        <div class="muted" style="margin:-6px 0 10px;">Zaznacz jeden lub kilka stylów — dla każdego powstaną warianty.</div>
+        <h2><span class="num">2</span>Shot style</h2>
+        <div class="muted" style="margin:-6px 0 10px;">Select one or more styles — variants will be created for each.</div>
         <div class="style-grid" id="styleGrid"></div>
         <div id="customWrap" class="hidden">
-          <label class="lbl">Własny prompt</label>
-          <textarea id="customPrompt" rows="3" placeholder="Opisz scenę po swojemu, np. „produkt na marmurowym blacie, miękkie poranne światło, obok zielony liść”…"></textarea>
+          <label class="lbl">Custom prompt</label>
+          <textarea id="customPrompt" rows="3" placeholder="Describe the scene your own way, e.g. „product on a marble countertop, soft morning light, a green leaf beside it”…"></textarea>
         </div>
       </div>
 
       <div class="card">
-        <h2><span class="num">3</span>Format i ilość</h2>
+        <h2><span class="num">3</span>Format & quantity</h2>
         <div class="row2b">
           <div>
-            <label class="lbl">Format (proporcje)</label>
+            <label class="lbl">Format (aspect ratio)</label>
             <select id="genFormat">
-              <option value="9:16" selected>9:16 — pionowy</option>
-              <option value="16:9">16:9 — poziomy</option>
-              <option value="1:1">1:1 — kwadrat</option>
-              <option value="4:5">4:5 — pionowy social</option>
+              <option value="9:16" selected>9:16 — vertical</option>
+              <option value="16:9">16:9 — horizontal</option>
+              <option value="1:1">1:1 — square</option>
+              <option value="4:5">4:5 — vertical social</option>
               <option value="5:4">5:4</option>
               <option value="3:4">3:4</option>
               <option value="4:3">4:3</option>
@@ -252,20 +252,20 @@
             </select>
           </div>
           <div>
-            <label class="lbl">Jakość</label>
+            <label class="lbl">Quality</label>
             <select id="genQuality"><option>1K</option><option>2K</option><option>4K</option></select>
           </div>
           <div>
-            <label class="lbl">Wariacje na styl</label>
+            <label class="lbl">Variations per style</label>
             <select id="genVars"><option>1</option><option>2</option><option>3</option><option selected>4</option><option>5</option></select>
           </div>
         </div>
-        <div class="actions"><button class="btn green" id="btnGenImg" onclick="genImages()">Generuj obrazy →</button></div>
+        <div class="actions"><button class="btn green" id="btnGenImg" onclick="genImages()">Generate images →</button></div>
       </div>
 
       <div class="card hidden" id="imgResCard">
-        <h2>Wygenerowane obrazy <span class="muted" id="imgCount" style="font-weight:500;margin-left:6px;"></span></h2>
-        <div id="imgLoading" class="loading"><div class="spin"></div> Generuję warianty…</div>
+        <h2>Generated images <span class="muted" id="imgCount" style="font-weight:500;margin-left:6px;"></span></h2>
+        <div id="imgLoading" class="loading"><div class="spin"></div> Generating variants…</div>
         <div id="imgErr" class="err hidden"></div>
         <div class="img-grid hidden" id="imgGrid"></div>
       </div>
@@ -273,55 +273,55 @@
 
     <!-- BANNER CREATION -->
     <div class="view hidden" id="view-banners">
-      <h1 class="page-h">Tworzenie banerów</h1>
-      <p class="page-sub">Wybierz szablon Dr.Max, ustaw kampanię i wybierz obraz z generacji — AI napisze copy, a my wyrenderujemy gotowe banery (z reformatami).</p>
+      <h1 class="page-h">Banner creation</h1>
+      <p class="page-sub">Pick a Dr.Max template, set up the campaign and choose an image from generation — AI will write the copy, and we'll render the finished banners (with reformats).</p>
 
       <div class="card">
-        <h2><span class="num">1</span>Szablon Dr.Max</h2>
-        <div class="muted" style="margin:-6px 0 12px;">Szablony z biblioteki Figma. Zaznacz jeden lub kilka — dla każdego powstanie baner.</div>
-        <div class="tpl-row" id="tplRow"><div class="loading"><div class="spin"></div> Ładuję szablony…</div></div>
+        <h2><span class="num">1</span>Dr.Max template</h2>
+        <div class="muted" style="margin:-6px 0 12px;">Templates from the Figma library. Select one or more — a banner will be created for each.</div>
+        <div class="tpl-row" id="tplRow"><div class="loading"><div class="spin"></div> Loading templates…</div></div>
       </div>
 
       <div class="card">
-        <h2><span class="num">2</span>Kampania</h2>
+        <h2><span class="num">2</span>Campaign</h2>
         <div style="display:flex;gap:24px;flex-wrap:wrap;">
           <div style="flex:1;min-width:340px;">
-            <label class="lbl">Grupa docelowa</label>
-            <input id="banTargetGroup" type="text" value="kobiety 35+" />
+            <label class="lbl">Target group</label>
+            <input id="banTargetGroup" type="text" value="women 35+" />
           </div>
           <div style="width:260px;">
-            <label class="lbl">Elementy banera</label>
+            <label class="lbl">Banner elements</label>
             <label class="chk"><input type="checkbox" id="showLogo" checked> Logo</label>
-            <label class="chk"><input type="checkbox" id="showCTA" checked> Przycisk CTA</label>
-            <label class="chk"><input type="checkbox" id="showDiscount" checked> Odznaka rabatu</label>
+            <label class="chk"><input type="checkbox" id="showCTA" checked> CTA button</label>
+            <label class="chk"><input type="checkbox" id="showDiscount" checked> Discount badge</label>
             <label class="chk"><input type="checkbox" id="showDisclaimer" checked> Disclaimer</label>
-            <label class="lbl" style="margin-top:12px;">Tekst rabatu</label>
-            <input id="discountText" type="text" value="do -20%" />
+            <label class="lbl" style="margin-top:12px;">Discount text</label>
+            <input id="discountText" type="text" value="up to -20%" />
             <label class="lbl" style="margin-top:12px;">Disclaimer</label>
-            <textarea id="disclaimerText" rows="3">Oferta obowiązuje do 30.06.2026 r. lub do wyczerpania zapasów.</textarea>
+            <textarea id="disclaimerText" rows="3">Offer valid until 30/06/2026 or while stocks last.</textarea>
           </div>
         </div>
-        <div class="actions"><button class="btn" id="btnCopy" onclick="genCopy()">Generuj copy →</button></div>
+        <div class="actions"><button class="btn" id="btnCopy" onclick="genCopy()">Generate copy →</button></div>
       </div>
 
       <div class="card">
-        <h2><span class="num">3</span>Obraz — wybierz lub wygeneruj</h2>
-        <div class="muted" style="margin:-6px 0 12px;">Wybierz tło z tej sesji lub z <b>biblioteki</b> — albo wygeneruj nowy obraz.</div>
-        <div class="pick-grid" id="pickGrid"><div class="muted">Ładuję…</div></div>
-        <div class="actions"><button class="btn green" onclick="showView('images')">+ Wygeneruj nowy obraz →</button></div>
+        <h2><span class="num">3</span>Image — choose or generate</h2>
+        <div class="muted" style="margin:-6px 0 12px;">Pick a background from this session or from the <b>library</b> — or generate a new image.</div>
+        <div class="pick-grid" id="pickGrid"><div class="muted">Loading…</div></div>
+        <div class="actions"><button class="btn green" onclick="showView('images')">+ Generate a new image →</button></div>
       </div>
 
       <div class="card hidden" id="copyCard">
-        <h2>Wygenerowane copy <span class="muted" style="font-weight:500;margin-left:6px;">— edytowalne (nagłówek, subheadline, CTA, badge, legal)</span></h2>
-        <div id="copyLoading" class="loading"><div class="spin"></div> Generuję 3 warianty copy…</div>
+        <h2>Generated copy <span class="muted" style="font-weight:500;margin-left:6px;">— editable (headline, subheadline, CTA, badge, legal)</span></h2>
+        <div id="copyLoading" class="loading"><div class="spin"></div> Generating 3 copy variants…</div>
         <div id="copyErr" class="err hidden"></div>
         <div class="copy-grid hidden" id="copyGrid"></div>
-        <div class="actions hidden" id="copyActions"><button class="btn ghost" onclick="genBanners()">Generuj banery →</button></div>
+        <div class="actions hidden" id="copyActions"><button class="btn ghost" onclick="genBanners()">Generate banners →</button></div>
       </div>
 
       <div class="card hidden" id="banCard">
-        <h2>Wygenerowane banery</h2>
-        <div id="banLoading" class="loading"><div class="spin"></div> Generuję banery… (~1–3 min)</div>
+        <h2>Generated banners</h2>
+        <div id="banLoading" class="loading"><div class="spin"></div> Generating banners… (~1–3 min)</div>
         <div id="banErr" class="err hidden"></div>
         <div class="ban-grid hidden" id="banGrid"></div>
       </div>
@@ -329,39 +329,39 @@
 
     <!-- TRANSLATE (placeholder) -->
     <div class="view hidden" id="view-translate">
-      <h1 class="page-h">Tłumaczenie banerów</h1>
-      <p class="page-sub">Przetłumacz gotowe banery na wybrane rynki — copy dopasowane do każdego języka.</p>
-      <div class="note">🔧 Moduł w przygotowaniu — wkrótce podłączymy automatyczne tłumaczenie copy i re-render banerów dla wybranych języków.</div>
+      <h1 class="page-h">Banner translation</h1>
+      <p class="page-sub">Translate finished banners for selected markets — copy adapted to each language.</p>
+      <div class="note">🔧 Module in progress — we'll soon connect automatic copy translation and banner re-rendering for selected languages.</div>
       <div class="card">
-        <label class="lbl">Języki</label>
+        <label class="lbl">Languages</label>
         <div class="lang-grid" id="langGrid">
           <span class="lang active">🇵🇱 PL</span><span class="lang">🇬🇧 EN</span><span class="lang">🇨🇿 CZ</span><span class="lang">🇸🇰 SK</span><span class="lang">🇷🇴 RO</span>
         </div>
-        <div class="actions"><button class="btn" disabled>Przetłumacz → (wkrótce)</button></div>
+        <div class="actions"><button class="btn" disabled>Translate → (soon)</button></div>
       </div>
     </div>
 
     <!-- SAVED -->
     <div class="view hidden" id="view-saved">
-      <h1 class="page-h">Zapisane</h1>
-      <p class="page-sub">Obrazy i banery wygenerowane w tej sesji dla Dr.Max.</p>
-      <div class="card"><h2>Obrazy</h2><div class="gal" id="galImages"><div class="muted">Brak zapisanych obrazów.</div></div></div>
-      <div class="card"><h2>Banery</h2><div class="gal" id="galBanners"><div class="muted">Brak zapisanych banerów.</div></div></div>
+      <h1 class="page-h">Saved</h1>
+      <p class="page-sub">Images and banners generated in this session for Dr.Max.</p>
+      <div class="card"><h2>Images</h2><div class="gal" id="galImages"><div class="muted">No saved images.</div></div></div>
+      <div class="card"><h2>Banners</h2><div class="gal" id="galBanners"><div class="muted">No saved banners.</div></div></div>
     </div>
 
     <!-- BRAND -->
     <div class="view hidden" id="view-brand">
-      <h1 class="page-h">Marka — Dr.Max</h1>
-      <p class="page-sub">Profil marki: logo, kolory, typografia. Generacje i banery trzymają się tych zasad.</p>
+      <h1 class="page-h">Brand — Dr.Max</h1>
+      <p class="page-sub">Brand profile: logo, colors, typography. Generations and banners follow these rules.</p>
       <div class="card">
         <h2>Logo</h2>
         <img src="img/drmax_logo.png" style="max-width:300px;width:100%;display:block;margin-bottom:14px;">
-        <label class="lbl">Własne logo (nadpisuje domyślne na banerach)</label>
+        <label class="lbl">Custom logo (overrides the default on banners)</label>
         <input id="logoInput" type="file" accept="image/*" />
-        <div id="logoPreview" class="muted" style="margin-top:8px;">Używane jest domyślne logo Dr.Max.</div>
+        <div id="logoPreview" class="muted" style="margin-top:8px;">The default Dr.Max logo is being used.</div>
       </div>
-      <div class="card"><h2>Kolorystyka</h2><div class="swatches" id="swatches"></div></div>
-      <div class="card"><h2>Typografia</h2><div class="muted" style="margin-bottom:6px;">Krój banerów: <b style="color:var(--ink)">Montserrat</b> — Regular / SemiBold / Bold / Black.</div><div style="font-weight:900;font-size:32px;color:var(--red);">ZDROWIE I URODA</div></div>
+      <div class="card"><h2>Colors</h2><div class="swatches" id="swatches"></div></div>
+      <div class="card"><h2>Typography</h2><div class="muted" style="margin-bottom:6px;">Banner typeface: <b style="color:var(--ink)">Montserrat</b> — Regular / SemiBold / Bold / Black.</div><div style="font-weight:900;font-size:32px;color:var(--red);">HEALTH AND BEAUTY</div></div>
     </div>
   </main>
 </div>
