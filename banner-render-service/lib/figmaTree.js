@@ -140,6 +140,8 @@ const COPY_SLOTS = {
   xx: "subheadline",
   promo: "promo",
   "promo copy": "promo",
+  badge: "badge",
+  "badge text": "badge",
   legal: "legal"
 };
 
@@ -150,6 +152,8 @@ const SLOT_NAME_TO_KEY = {
   xx: "subheadline",
   promo: "promo",
   "promo copy": "promo",
+  badge: "badge",
+  "badge text": "badge",
   legal: "legal",
   cta: "cta",
   logo: "logo",

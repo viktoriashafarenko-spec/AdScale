@@ -518,7 +518,7 @@ function mkJob(t, variantIndex){
   const w = Math.round(t.width), h = Math.round(t.height);
   return { templateId:t.id, templateName:t.name, variantIndex, w, h, family: templateFamily(t),
     format: `${w}x${h}`, sceneUrl: pickedSceneUrl,
-    copy:{ headline:v.headline||"", subheadline:v.subheadline||"", cta:v.cta||"", promo:v.promo||s.discountText||"", legal:v.legal||s.disclaimerText||"" } };
+    copy:{ headline:v.headline||"", subheadline:v.subheadline||"", cta:v.cta||"", promo:s.discountText||"", badge:v.promo||"", legal:v.legal||s.disclaimerText||"" } };
 }
 function banClassFor(job){
   if (job.family === "wide" || job.family === "medium") return "ban wide";
@@ -630,7 +630,8 @@ function editText(btn){
   box.innerHTML = `<label>Nagłówek</label><input data-e="headline" value="${esc(job.copy.headline)}">
     <label>Subheadline</label><textarea data-e="subheadline" rows="2">${esc(job.copy.subheadline)}</textarea>
     <label>CTA</label><input data-e="cta" value="${esc(job.copy.cta)}">
-    <label>Tekst rabatu (badge)</label><input data-e="promo" value="${esc(job.copy.promo)}">
+    <label>Rabat / zniżka</label><input data-e="promo" value="${esc(job.copy.promo)}">
+    <label>Tekst na badge</label><input data-e="badge" value="${esc(job.copy.badge||'')}">
     <label>Legal / disclaimer</label><textarea data-e="legal" rows="2">${esc(job.copy.legal)}</textarea>
     <button class="ap" onclick="applyText(this)">Zastosuj</button><button class="ca" onclick="this.closest('.editbox').classList.add('hidden')">Anuluj</button>`;
 }
@@ -643,6 +644,7 @@ async function applyText(btn){
     subheadline: box.querySelector('[data-e=subheadline]').value.trim(),
     cta: box.querySelector('[data-e=cta]').value.trim(),
     promo: box.querySelector('[data-e=promo]').value.trim(),
+    badge: box.querySelector('[data-e=badge]').value.trim(),
     legal: box.querySelector('[data-e=legal]').value.trim() };
   reformatInFlight = true; btn.disabled = true;
   const frame = card.querySelector(".frame"); const ov = document.createElement("div"); ov.className="ovl"; ov.innerHTML='<div class="spin"></div> Renderuję…'; frame.appendChild(ov);
