@@ -629,6 +629,8 @@ function editText(btn){
   box.innerHTML = `<label>Nagłówek</label><input data-e="headline" value="${esc(job.copy.headline)}">
     <label>Subheadline</label><textarea data-e="subheadline" rows="2">${esc(job.copy.subheadline)}</textarea>
     <label>CTA</label><input data-e="cta" value="${esc(job.copy.cta)}">
+    <label>Tekst rabatu (badge)</label><input data-e="promo" value="${esc(job.copy.promo)}">
+    <label>Legal / disclaimer</label><textarea data-e="legal" rows="2">${esc(job.copy.legal)}</textarea>
     <button class="ap" onclick="applyText(this)">Zastosuj</button><button class="ca" onclick="this.closest('.editbox').classList.add('hidden')">Anuluj</button>`;
 }
 async function applyText(btn){
@@ -638,7 +640,9 @@ async function applyText(btn){
   const copy = { ...job.copy,
     headline: box.querySelector('[data-e=headline]').value.trim(),
     subheadline: box.querySelector('[data-e=subheadline]').value.trim(),
-    cta: box.querySelector('[data-e=cta]').value.trim() };
+    cta: box.querySelector('[data-e=cta]').value.trim(),
+    promo: box.querySelector('[data-e=promo]').value.trim(),
+    legal: box.querySelector('[data-e=legal]').value.trim() };
   reformatInFlight = true; btn.disabled = true;
   const frame = card.querySelector(".frame"); const ov = document.createElement("div"); ov.className="ovl"; ov.innerHTML='<div class="spin"></div> Renderuję…'; frame.appendChild(ov);
   try{
