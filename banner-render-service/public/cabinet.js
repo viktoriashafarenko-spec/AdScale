@@ -447,7 +447,8 @@ async function genCopy(){
     });
     const data = await res.json();
     const headlines = data.headlines || [], subs = data.subheadlines || [], ctas = data.ctas || [];
-    generatedVariants = [0,1,2].map(i => ({ headline:headlines[i]||"", subheadline:subs[i]||"", cta:ctas[i]||"" }));
+    const promos = data.promos || [], legals = data.legals || [];
+    generatedVariants = [0,1,2].map(i => ({ headline:headlines[i]||"", subheadline:subs[i]||"", cta:ctas[i]||"", promo:promos[i]||"", legal:legals[i]||"" }));
     hide("copyLoading"); renderCopy(); show("copyActions");
   }catch(err){
     console.error(err); hide("copyLoading"); setErr("copyErr", `Błąd: ${err.message}`);
@@ -517,7 +518,7 @@ function mkJob(t, variantIndex){
   const w = Math.round(t.width), h = Math.round(t.height);
   return { templateId:t.id, templateName:t.name, variantIndex, w, h, family: templateFamily(t),
     format: `${w}x${h}`, sceneUrl: pickedSceneUrl,
-    copy:{ headline:v.headline||"", subheadline:v.subheadline||"", cta:v.cta||"", promo:s.discountText||"", legal:s.disclaimerText||"" } };
+    copy:{ headline:v.headline||"", subheadline:v.subheadline||"", cta:v.cta||"", promo:v.promo||s.discountText||"", legal:v.legal||s.disclaimerText||"" } };
 }
 function banClassFor(job){
   if (job.family === "wide" || job.family === "medium") return "ban wide";

@@ -166,6 +166,7 @@ app.post("/generate-copy", async (req, res) => {
       .join(", ");
 
     const discount = templateSettings.discountText || "";
+    const disclaimer = templateSettings.disclaimerText || "";
 
    const prompt = `
 You are a senior Polish marketing copywriter creating short retail pharmacy banner copy.
@@ -182,7 +183,9 @@ Return STRICT JSON only:
 {
   "headlines": ["","",""],
   "subheadlines": ["","",""],
-  "ctas": ["","",""]
+  "ctas": ["","",""],
+  "promos": ["","",""],
+  "legals": ["","",""]
 }
 
 CRITICAL RULES
@@ -219,6 +222,24 @@ Examples:
 - "Sprawdź ofertę"
 - "Kup teraz"
 - "Odkryj więcej"
+
+PROMO (badge text)
+- max 35 characters, ideally 2-4 words
+- short promotional line for the discount badge, Polish
+- do NOT invent a specific percentage${discount ? ` (the discount shown separately is: ${discount})` : ""}
+
+Examples:
+- "Wyjątkowa okazja"
+- "Promocja tygodnia"
+- "Zadbaj o zdrowie"
+
+LEGAL (disclaimer)
+- one short sentence in Polish, standard offer-validity style
+- do NOT invent dates, medical claims or guarantees${disclaimer ? `; you may base it on: ${disclaimer}` : ""}
+
+Examples:
+- "Oferta obowiązuje do wyczerpania zapasów."
+- "Promocja ograniczona czasowo. Szczegóły w aptece."
 
 IMPORTANT
 Discount information already exists visually in the banner badge.
@@ -258,11 +279,25 @@ Output ONLY valid JSON.
       "Zamów online"
     ]);
 
+    const promos = sanitizeArray(parsed.promos, [
+      "Wyjątkowa okazja",
+      "Promocja tygodnia",
+      "Zadbaj o zdrowie"
+    ]);
+
+    const legals = sanitizeArray(parsed.legals, [
+      "Oferta obowiązuje do wyczerpania zapasów.",
+      "Promocja ograniczona czasowo. Szczegóły w aptece.",
+      "Sprawdź szczegóły oferty w aptece."
+    ]);
+
     res.json({
       status: "OK",
       headlines: [0, 1, 2].map((i) => headlines[i] || headlines[0] || ""),
       subheadlines: [0, 1, 2].map((i) => subheadlines[i] || subheadlines[0] || ""),
-      ctas: [0, 1, 2].map((i) => ctas[i] || ctas[0] || "")
+      ctas: [0, 1, 2].map((i) => ctas[i] || ctas[0] || ""),
+      promos: [0, 1, 2].map((i) => promos[i] || promos[0] || ""),
+      legals: [0, 1, 2].map((i) => legals[i] || legals[0] || "")
     });
   } catch (e) {
     console.error("COPY_GENERATION_ERROR:", e);
