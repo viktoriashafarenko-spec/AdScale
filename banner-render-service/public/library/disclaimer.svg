@@ -1,0 +1,8 @@
+<svg width="700" height="240" viewBox="0 0 700 240" fill="none" xmlns="http://www.w3.org/2000/svg">
+<rect x="0.5" y="0.5" width="699" height="239" rx="4.5" stroke="#9747FF" stroke-dasharray="10 5"/>
+<!-- Disclaimer / legal slot — Omnibus line, auto-resize -->
+<text x="40" y="70" font-family="'Proxima Nova','Helvetica Neue',Arial,sans-serif" font-weight="600" font-size="26" fill="#606060">Najniższa cena z 30 dni przed obniżką: 599,-</text>
+<text x="40" y="112" font-family="'Proxima Nova','Helvetica Neue',Arial,sans-serif" font-weight="400" font-size="22" fill="#8A8A8A">Oferta obowiązuje do wyczerpania zapasów. Szczegóły w aptece.</text>
+<text x="40" y="152" font-family="'Proxima Nova','Helvetica Neue',Arial,sans-serif" font-weight="400" font-size="22" fill="#8A8A8A">The lowest price in the last 30 days before the discount (Omnibus).</text>
+<text x="42" y="210" font-family="'Proxima Nova','Helvetica Neue',Arial,sans-serif" font-weight="600" font-size="22" fill="#9747FF">Legal line / Omnibus · resize</text>
+</svg>

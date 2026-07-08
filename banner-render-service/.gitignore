@@ -2,3 +2,8 @@ node_modules/
 *.zip
 .DS_Store
 *.log
+
+# generated / heavy — not committed
+public/gallery/
+public/preview/
+.claude/

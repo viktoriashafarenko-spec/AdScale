@@ -3,11 +3,18 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+<meta http-equiv="Pragma" content="no-cache" />
+<meta http-equiv="Expires" content="0" />
 <title>Dr.Max · AdScale Studio</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 <style>
+  /* Dr.Max brand typeface — Proxima Nova (Regular / Semibold / Bold) */
+  @font-face{font-family:'Proxima Nova';src:url('fonts/ProximaNova-Regular.otf') format('opentype');font-weight:400;font-style:normal;font-display:swap;}
+  @font-face{font-family:'Proxima Nova';src:url('fonts/ProximaNova-Semibold.otf') format('opentype');font-weight:600;font-style:normal;font-display:swap;}
+  @font-face{font-family:'Proxima Nova';src:url('fonts/ProximaNova-Bold.otf') format('opentype');font-weight:700;font-style:normal;font-display:swap;}
   :root{--red:#E2001A;--green:#76B82A;--grey:#2b2f33;--ink:#1f2937;--muted:#6b7280;--line:#e5e7eb;--bg:#f4f6f8;}
   *{box-sizing:border-box;}
   body{margin:0;font-family:'Montserrat',Arial,sans-serif;color:var(--ink);background:var(--bg);}
@@ -168,6 +175,93 @@
   .feed-card{cursor:pointer;}
   .feed-card.sel{outline:2px solid var(--red);outline-offset:-1px;}
   .feed-card .pr{font-size:11px;color:var(--muted);margin-top:2px;}
+  /* brand elements library dropdown */
+  .lib-dd{position:relative;display:inline-block;}
+  .lib-btn{display:inline-flex;align-items:center;gap:10px;padding:11px 16px;border:1.5px solid var(--line);border-radius:11px;background:#fff;font:inherit;font-weight:700;font-size:13.5px;color:var(--ink);cursor:pointer;}
+  .lib-btn:hover{border-color:var(--red);}
+  .lib-btn .car{margin-left:2px;color:var(--muted);transition:transform .15s;}
+  .lib-dd.open .lib-btn .car{transform:rotate(180deg);}
+  .lib-menu{position:absolute;z-index:30;top:calc(100% + 6px);left:0;width:330px;max-height:420px;overflow:auto;background:#fff;border:1px solid var(--line);border-radius:13px;box-shadow:0 16px 40px rgba(0,0,0,.14);padding:8px;display:none;}
+  .lib-dd.open .lib-menu{display:block;}
+  .lib-grp{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);padding:10px 10px 5px;}
+  .lib-opt{display:flex;align-items:center;gap:12px;padding:8px 10px;border-radius:9px;cursor:pointer;}
+  .lib-opt:hover{background:#f4f6f8;}
+  .lib-opt img{width:46px;height:40px;object-fit:contain;border:1px solid var(--line);border-radius:7px;background:#eef0ec;flex:0 0 auto;}
+  .lib-opt .nm{font-weight:700;font-size:13px;}
+  .lib-opt .ds{font-size:11px;color:var(--muted);}
+  .lib-preview{margin-top:16px;border:1px solid var(--line);border-radius:13px;padding:18px;display:flex;gap:20px;align-items:center;background:#fafbfc;}
+  .lib-preview .frame{flex:0 0 auto;width:240px;height:200px;display:grid;place-items:center;background:#eef0ec;border:1px solid var(--line);border-radius:10px;overflow:hidden;}
+  .lib-preview .frame img{max-width:92%;max-height:92%;object-fit:contain;}
+  .lib-preview .meta .nm{font-weight:800;font-size:16px;margin-bottom:4px;}
+  .lib-preview .meta .ds{font-size:12.5px;color:var(--muted);line-height:1.5;}
+  .lib-preview .meta .tag{display:inline-block;margin-top:10px;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--green);background:#eef7e3;border-radius:6px;padding:3px 8px;}
+  /* adaptive builder */
+  .bld{display:flex;gap:22px;align-items:stretch;height:calc(100vh - 240px);min-height:480px;}
+  .bld-side{width:340px;flex:0 0 auto;overflow-y:auto;padding-right:8px;}
+  .bld-side .card{margin-bottom:16px;}
+  .bld-side .lbl{display:block;font-size:12px;font-weight:700;color:var(--muted);margin:10px 0 4px;}
+  .bld-stage{flex:1;height:100%;background:#eef0ec;border:1px solid var(--line);border-radius:16px;display:flex;align-items:center;justify-content:center;padding:24px;overflow:hidden;position:sticky;top:0;}
+  /* format bar — always visible above the builder */
+  .bld-fmtbar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:#fff;border:1px solid var(--line);border-radius:14px;padding:12px 16px;margin-bottom:16px;}
+  .bld-fmtbar-lbl{font-weight:800;font-size:13px;color:var(--ink);}
+  .bld-fmtbar #bTplInfo{margin-left:auto;font-size:12px;}
+  .bld-divider{height:1px;background:var(--line);margin:16px 0 6px;}
+  /* format pills */
+  .bld-formats{display:flex;flex-wrap:wrap;gap:8px;}
+  .bld-fmt{font-size:12.5px;font-weight:700;border:1.5px solid var(--line);border-radius:999px;padding:7px 14px;cursor:pointer;background:#fff;color:var(--ink);user-select:none;}
+  .bld-fmt:hover{border-color:var(--green);}
+  .bld-fmt.on{background:var(--green);border-color:var(--green);color:#fff;}
+  /* products */
+  .bprod-grid{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;}
+  .bprod{position:relative;width:62px;height:62px;border:1px solid var(--line);border-radius:9px;overflow:hidden;background:#fff;}
+  .bprod img{width:100%;height:100%;object-fit:contain;}
+  .bprod .x{position:absolute;top:1px;right:2px;cursor:pointer;background:rgba(0,0,0,.55);color:#fff;border-radius:50%;width:16px;height:16px;font-size:11px;line-height:16px;text-align:center;}
+  /* copy variant chips */
+  .bcopy-vars{display:flex;flex-direction:column;gap:6px;margin-top:10px;}
+  .bcopy-var{border:1px solid var(--line);border-radius:9px;padding:8px 10px;cursor:pointer;font-size:12px;}
+  .bcopy-var:hover{border-color:var(--green);background:#fafdf6;}
+  .bcopy-var b{display:block;font-size:13px;color:var(--ink);margin-bottom:2px;}
+  /* element rows */
+  .bel{border:1px solid var(--line);border-radius:11px;padding:9px 11px;margin-bottom:8px;}
+  .bel-head{display:flex;align-items:center;gap:9px;}
+  .bel-name{font-weight:700;font-size:13px;flex:1;}
+  .bel-sw{display:inline-block;width:38px;height:22px;border-radius:11px;background:#ddd;position:relative;cursor:pointer;transition:background .15s;flex:0 0 auto;}
+  .bel-sw::after{content:"";position:absolute;top:2px;left:2px;width:18px;height:18px;border-radius:50%;background:#fff;transition:left .15s;}
+  .bel-sw.on{background:var(--green);}
+  .bel-sw.on::after{left:18px;}
+  .bel-props{display:flex;flex-wrap:wrap;gap:10px;margin-top:10px;}
+  .bel-prop{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--muted);}
+  .bel-prop input[type=color]{width:30px;height:26px;border:1px solid var(--line);border-radius:6px;padding:0;background:none;cursor:pointer;}
+  .bel-prop input[type=text],.bel-prop input[type=number]{width:88px;padding:6px 8px;border:1px solid var(--line);border-radius:7px;font:inherit;font-size:12px;}
+  .bel-prop select{width:auto;padding:6px 8px;font-size:12px;}
+  .bld-mini{font:inherit;font-size:11.5px;font-weight:700;border:1.5px solid var(--line);background:#fff;color:var(--ink);border-radius:8px;padding:6px 10px;cursor:pointer;}
+  .bld-mini.on{border-color:var(--green);background:#eef7e3;color:#356B09;}
+  /* segmented clickable control groups (Layout card) */
+  .seg{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0 6px;}
+  .seg .opt{font:inherit;font-size:11.5px;font-weight:700;border:1.5px solid var(--line);background:#fff;color:var(--ink);border-radius:8px;padding:7px 11px;cursor:pointer;user-select:none;}
+  .seg .opt:hover{border-color:var(--green);}
+  .seg .opt.on{border-color:var(--green);background:#eef7e3;color:#356B09;}
+  .seg .opt.off{opacity:.38;cursor:not-allowed;}
+  /* packshot picker (Layout card) — pick a product to drop inside the shape */
+  .pk-grid{display:flex;flex-wrap:wrap;gap:6px;margin:2px 0 6px;}
+  .pk-thumb{width:46px;height:46px;border:1.5px solid var(--line);border-radius:9px;background:#fff;padding:3px;cursor:pointer;display:flex;align-items:center;justify-content:center;overflow:hidden;}
+  .pk-thumb:hover{border-color:var(--green);}
+  .pk-thumb img{max-width:100%;max-height:100%;object-fit:contain;}
+  .pk-thumb.on{border-color:var(--green);background:#eef7e3;}
+  .pk-thumb.pk-none{color:var(--muted);font-size:15px;font-weight:700;}
+  /* generated-image library modal */
+  .biglib{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:100;display:flex;align-items:center;justify-content:center;}
+  .biglib-box{background:#fff;border-radius:16px;width:min(720px,92vw);max-height:80vh;overflow:hidden;display:flex;flex-direction:column;}
+  .biglib-head{font-weight:800;padding:16px 18px;border-bottom:1px solid var(--line);display:flex;align-items:center;}
+  .biglib-x{margin-left:auto;cursor:pointer;font-size:22px;color:var(--muted);line-height:1;}
+  .biglib-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;padding:16px;overflow:auto;}
+  .biglib-grid img{width:100%;aspect-ratio:1;object-fit:cover;border:1px solid var(--line);border-radius:10px;cursor:pointer;}
+  .biglib-grid img:hover{outline:2px solid var(--green);outline-offset:-1px;}
+  /* legacy collapse */
+  details.legacy-flow{margin-top:8px;}
+  details.legacy-flow>summary{cursor:pointer;color:var(--muted);font-size:12.5px;font-weight:700;padding:8px 0;list-style:none;}
+  details.legacy-flow>summary::before{content:"▸ ";}
+  details.legacy-flow[open]>summary::before{content:"▾ ";}
 </style>
 </head>
 <body>
@@ -276,6 +370,67 @@
       <h1 class="page-h">Banner creation</h1>
       <p class="page-sub">Pick a Dr.Max template, set up the campaign and choose an image from generation — AI will write the copy, and we'll render the finished banners (with reformats).</p>
 
+      <div class="bld-fmtbar">
+        <span class="bld-fmtbar-lbl">Format</span>
+        <div class="bld-formats" id="bFormats"></div>
+        <span class="muted" id="bTplInfo"></span>
+        <button class="btn green" id="bSavePng" type="button" style="padding:9px 15px;font-size:13px;white-space:nowrap;">⤓ Save PNG</button>
+      </div>
+
+      <div class="bld">
+        <div class="bld-side">
+          <div class="card">
+            <h2><span class="num">1</span>Products</h2>
+            <div class="muted" style="margin:-6px 0 10px;">Upload product packshots — the AI uses them to write the copy.</div>
+            <input id="bProdInput" type="file" accept="image/*" multiple>
+            <div class="bprod-grid" id="bProdGrid"></div>
+          </div>
+          <div class="card">
+            <h2><span class="num">2</span>Campaign &amp; copy</h2>
+            <label class="lbl">Language</label><div id="bLang" class="seg" style="margin-bottom:12px;"></div>
+            <div style="display:flex;gap:10px;">
+              <div style="flex:1;"><label class="lbl">Company / brand</label><input id="bCompany" type="text" value="Dr.Max"></div>
+              <div style="flex:1;"><label class="lbl">Target group</label><input id="bTarget" type="text" value="women 35+"></div>
+            </div>
+            <div class="actions" style="margin:12px 0 0;"><button class="btn" id="bGenCopy" type="button">✨ Generate copy →</button></div>
+            <div id="bCopyVars" class="bcopy-vars"></div>
+            <div id="bCopyErr" class="err hidden"></div>
+            <div class="bld-divider"></div>
+            <label class="lbl">Eyebrow</label><input id="bEyebrow" type="text" value="Health &amp; Beauty">
+            <label class="lbl">Headline</label><input id="bHeadline" type="text" value="Everyday energy for the whole family">
+            <label class="lbl">Subheadline</label><input id="bSub" type="text" value="Selected supplements with support for every day.">
+            <label class="lbl">CTA</label>
+            <div style="display:flex;gap:8px;">
+              <input id="bCta" type="text" value="See the offer" style="flex:1;">
+              <select id="bCtaVar" style="width:120px;"><option value="red">red</option><option value="green">green</option><option value="white">white</option></select>
+            </div>
+          </div>
+          <div class="card">
+            <h2><span class="num">3</span>Layout</h2>
+            <label class="lbl">Background</label><div id="bBackground"></div>
+            <div class="bld-divider"></div>
+            <label class="lbl">Shape</label><div id="bShape" class="seg"></div>
+            <label class="lbl hidden" id="bPackshotLbl">Packshot</label><div id="bPackshot"></div>
+            <label class="lbl">Blocks</label><div id="bBlocks" class="seg"></div>
+            <label class="lbl">Text align</label><div id="bAlign" class="seg"></div>
+            <label class="lbl">Logo corner</label><div id="bLogo" class="seg"></div>
+            <div class="bld-divider"></div>
+            <div id="bLayoutElements"></div>
+          </div>
+          <div class="card">
+            <h2><span class="num">4</span>Text &amp; colors</h2>
+            <div id="bElements"></div>
+          </div>
+          <div class="card">
+            <h2><span class="num">5</span>Promo &amp; decoration</h2>
+            <div id="bDecor"></div>
+          </div>
+        </div>
+        <div class="bld-stage" id="bStage"><div id="bHost"></div></div>
+      </div>
+
+      <details class="legacy-flow">
+      <summary>Legacy Figma render flow (server)</summary>
       <div class="card">
         <h2><span class="num">1</span>Dr.Max template</h2>
         <div class="muted" style="margin:-6px 0 12px;">Templates from the Figma library. Select one or more — a banner will be created for each.</div>
@@ -325,6 +480,7 @@
         <div id="banErr" class="err hidden"></div>
         <div class="ban-grid hidden" id="banGrid"></div>
       </div>
+      </details>
     </div>
 
     <!-- TRANSLATE (placeholder) -->
@@ -361,12 +517,28 @@
         <div id="logoPreview" class="muted" style="margin-top:8px;">The default Dr.Max logo is being used.</div>
       </div>
       <div class="card"><h2>Colors</h2><div class="swatches" id="swatches"></div></div>
-      <div class="card"><h2>Typography</h2><div class="muted" style="margin-bottom:6px;">Banner typeface: <b style="color:var(--ink)">Montserrat</b> — Regular / SemiBold / Bold / Black.</div><div style="font-weight:900;font-size:32px;color:var(--red);">HEALTH AND BEAUTY</div></div>
+      <div class="card"><h2>Typography</h2><div class="muted" style="margin-bottom:10px;">Banner typeface: <b style="color:var(--ink)">Proxima Nova</b> — Regular / Semibold / Bold.</div>
+        <div style="font-family:'Proxima Nova',Arial,sans-serif;line-height:1.15;">
+          <div style="font-weight:700;font-size:34px;color:var(--ink);">Health &amp; Beauty</div>
+          <div style="font-weight:600;font-size:20px;color:var(--muted);margin-top:4px;">Everyday health and beauty support</div>
+          <div style="font-weight:400;font-size:14px;color:var(--muted);margin-top:4px;">Offer valid while stocks last.</div>
+        </div>
+      </div>
+      <div class="card">
+        <h2>Elements library</h2>
+        <div class="muted" style="margin-bottom:14px;">Brand building blocks from Figma — auto-resize, ready to drop into templates.</div>
+        <div class="lib-dd" id="libDd">
+          <button class="lib-btn" type="button" onclick="toggleLib()">🧩&nbsp; Pick an element <span class="car">▾</span></button>
+          <div class="lib-menu" id="libMenu"></div>
+        </div>
+        <div class="lib-preview" id="libPreview" style="display:none;"></div>
+      </div>
     </div>
   </main>
 </div>
 
 <div class="lightbox hidden" id="lightbox" onclick="closeLightbox()"><span class="lb-close">×</span><img src="" alt=""></div>
-<script src="cabinet.js?v=12"></script>
+<script src="cabinet.js?v=14"></script>
+<script type="module" src="builder.js?v=45"></script>
 </body>
 </html>

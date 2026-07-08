@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+<title>Dr.Max · AdScale — Banner gallery</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  :root{--red:#E2001A;--green:#76B82A;--green-d:#356B09;--ink:#1f2937;--muted:#6b7280;--line:#e7ebe3;--bg:#eef1ea;}
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:'Montserrat',Arial,sans-serif;color:var(--ink);background:var(--bg);}
+  /* header */
+  .top{background:linear-gradient(120deg,var(--green) 0%,var(--green-d) 100%);color:#fff;padding:34px 40px 30px;}
+  .top .brand{display:flex;align-items:center;gap:16px;}
+  .top .brand img{height:46px;background:#fff;border-radius:12px;padding:8px 12px;}
+  .top h1{font-size:30px;font-weight:800;margin:18px 0 4px;letter-spacing:-.01em;}
+  .top p{margin:0;font-size:15px;opacity:.92;font-weight:500;}
+  .top .meta{margin-top:14px;font-size:12.5px;opacity:.85;font-weight:600;}
+  /* toolbar */
+  .bar{display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:18px 40px 0;}
+  .count{font-size:13px;color:var(--muted);font-weight:600;}
+  .seg{display:flex;gap:6px;margin-left:auto;flex-wrap:wrap;}
+  .seg button{font:inherit;font-size:12.5px;font-weight:700;border:1.5px solid var(--line);background:#fff;color:var(--ink);border-radius:999px;padding:7px 14px;cursor:pointer;}
+  .seg button:hover{border-color:var(--green);}
+  .seg button.on{background:var(--green);border-color:var(--green);color:#fff;}
+  /* grid */
+  .wrap{padding:22px 40px 70px;}
+  .grid{display:flex;flex-wrap:wrap;gap:26px;align-items:flex-start;}
+  figure.card{margin:0;background:#fff;border:1px solid var(--line);border-radius:16px;padding:14px;box-shadow:0 10px 28px rgba(0,0,0,.06);
+    opacity:0;transform:translateY(10px);animation:rise .4s forwards;}
+  @keyframes rise{to{opacity:1;transform:translateY(0);}}
+  figure.card .imgbox{position:relative;border-radius:10px;overflow:hidden;background:#f3f5f1;display:flex;align-items:center;justify-content:center;cursor:zoom-in;}
+  figure.card img{display:block;width:100%;height:auto;}
+  /* save-as-PNG button (top-right of each banner) */
+  .dl-btn{position:absolute;top:8px;right:8px;display:inline-flex;align-items:center;gap:5px;
+    background:rgba(255,255,255,.94);color:var(--ink);border:1px solid var(--line);border-radius:9px;
+    padding:6px 10px;font:inherit;font-size:11px;font-weight:800;text-decoration:none;cursor:pointer;
+    box-shadow:0 2px 8px rgba(0,0,0,.16);opacity:.9;transition:.14s;}
+  .dl-btn:hover{background:var(--green);color:#fff;border-color:var(--green);opacity:1;}
+  figcaption{margin-top:12px;display:flex;align-items:center;gap:9px;}
+  .chip{font-size:10.5px;font-weight:800;color:#fff;background:var(--green);border-radius:6px;padding:3px 8px;text-transform:uppercase;letter-spacing:.03em;white-space:nowrap;}
+  .chip.wide{background:var(--red);}
+  .cap-name{font-size:13px;font-weight:700;color:var(--ink);}
+  .cap-dim{font-size:11.5px;color:var(--muted);margin-left:auto;font-weight:600;}
+  /* size buckets — portrait tall / square / landscape / strip */
+  .b-portrait .imgbox{width:270px;}
+  .b-square   .imgbox{width:330px;}
+  .b-land     .imgbox{width:360px;}
+  .b-strip    .imgbox{width:620px;}
+  /* empty state */
+  .empty{padding:70px 20px;text-align:center;color:var(--muted);width:100%;}
+  .empty .ic{font-size:46px;}
+  .empty code{background:#fff;border:1px solid var(--line);border-radius:8px;padding:3px 8px;font-size:13px;color:var(--ink);}
+  /* lightbox */
+  .lb{position:fixed;inset:0;background:rgba(15,20,12,.86);display:none;align-items:center;justify-content:center;z-index:50;cursor:zoom-out;padding:32px;}
+  .lb.on{display:flex;}
+  .lb img{max-width:94vw;max-height:92vh;border-radius:10px;box-shadow:0 24px 70px rgba(0,0,0,.5);}
+  .lb .x{position:absolute;top:18px;right:26px;color:#fff;font-size:34px;line-height:1;cursor:pointer;font-weight:300;}
+</style>
+</head>
+<body>
+  <header class="top">
+    <div class="brand"><img src="img/drmax_logo.png" alt="Dr.Max"><span style="font-size:12px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;opacity:.85;">AdScale Studio</span></div>
+    <h1>Everyday energy — banner gallery</h1>
+    <p>Selected campaign formats for review.</p>
+    <div class="meta" id="meta"></div>
+  </header>
+
+  <div class="bar">
+    <span class="count" id="count"></span>
+    <div class="seg" id="filters"></div>
+  </div>
+
+  <div class="wrap"><div class="grid" id="grid"></div></div>
+
+  <div class="lb" id="lb"><span class="x">&times;</span><img src="" alt=""></div>
+
+<script>
+// Known Dr.Max formats → channel label. Matched against a WxH token in the filename.
+const FORMATS = {
+  "1080x1350":"Meta · 4:5",  "1080x1920":"Meta · 9:16", "1080x1080":"Meta · 1:1",
+  "300x250":"GDN",           "336x280":"GDN",           "300x600":"Sklik",
+  "320x50":"Direct",         "728x90":"Direct",         "970x250":"Direct",
+  "360x330":"Web",           "1140x330":"Web"
+};
+const IMG_RE = /\.(png|jpe?g|webp|gif|avif)$/i;
+
+// derive a {name, fmt, channel} from a filename
+function describe(file){
+  const base = file.replace(/\.[^.]+$/,"");
+  const m = base.match(/(\d{2,4})\s*[x×]\s*(\d{2,4})/i);
+  const fmt = m ? `${m[1]}x${m[2]}` : "";
+  const channel = FORMATS[fmt] || "";
+  const name = base.replace(/[-_]+/g," ").replace(/\s+/g," ").trim();
+  return { name, fmt, channel };
+}
+// bucket by aspect ratio for a tidy layout
+function bucket(w,h){
+  const r = w/h;
+  if (r >= 3)   return "b-strip";
+  if (r >= 1.25)return "b-land";
+  if (r > 0.9)  return "b-square";
+  return "b-portrait";
+}
+
+let ALL = [];
+async function load(){
+  let files = [];
+  try {
+    const html = await (await fetch("gallery/?_="+Date.now())).text();
+    const doc = new DOMParser().parseFromString(html, "text/html");
+    files = [...doc.querySelectorAll("a")].map(a => a.getAttribute("href"))
+      .map(h => { try { return decodeURIComponent((h||"").split("/").pop()); } catch(_){ return (h||"").split("/").pop(); } })
+      .filter(f => f && IMG_RE.test(f));
+    files = [...new Set(files)].sort((a,b)=> a.localeCompare(b, undefined, {numeric:true}));
+  } catch(e){ /* listing unavailable */ }
+  ALL = files;
+  render("all");
+  buildFilters();
+}
+function buildFilters(){
+  const chans = ["all", ...new Set(ALL.map(f=>describe(f).channel).filter(Boolean))];
+  const box = document.getElementById("filters");
+  box.innerHTML = chans.map((c,i)=>`<button class="${i===0?"on":""}" data-c="${c}">${c==="all"?"All":c}</button>`).join("");
+  box.querySelectorAll("button").forEach(b=>b.addEventListener("click",()=>{
+    box.querySelectorAll("button").forEach(x=>x.classList.toggle("on", x===b));
+    render(b.dataset.c);
+  }));
+}
+function render(chan){
+  const grid = document.getElementById("grid");
+  const list = chan==="all" ? ALL : ALL.filter(f=>describe(f).channel===chan);
+  document.getElementById("count").textContent =
+    ALL.length ? `${list.length} banner${list.length!==1?"s":""}` : "";
+  document.getElementById("meta").textContent =
+    ALL.length ? `${ALL.length} formats · Dr.Max` : "";
+  if (!ALL.length){
+    grid.innerHTML = `<div class="empty"><div class="ic">🖼️</div>
+      <p>No banners yet.<br>Drop banner images into <code>public/gallery/</code> and refresh.</p></div>`;
+    return;
+  }
+  grid.innerHTML = list.map(f=>{
+    const d = describe(f);
+    const chip = d.channel ? `<span class="chip${/Direct/.test(d.channel)?" wide":""}">${d.channel}</span>` : "";
+    return `<figure class="card" data-b="b-portrait">
+      <div class="imgbox"><img src="gallery/${encodeURIComponent(f)}" alt="${d.name}" loading="lazy"><a class="dl-btn" href="gallery/${encodeURIComponent(f)}" download="${f.replace(/"/g,'&quot;')}" title="Save PNG">⤓ PNG</a></div>
+      <figcaption>${chip}<span class="cap-name">${d.fmt || d.name}</span><span class="cap-dim" data-dim></span></figcaption>
+    </figure>`;
+  }).join("");
+  // size each card by the image's real aspect once it loads
+  grid.querySelectorAll("figure.card").forEach(fig=>{
+    const img = fig.querySelector("img");
+    const set = ()=>{ const w=img.naturalWidth,h=img.naturalHeight; if(!w) return;
+      fig.className = "card "+bucket(w,h);
+      fig.querySelector("[data-dim]").textContent = `${w}×${h}`; };
+    img.complete ? set() : img.addEventListener("load", set);
+  });
+}
+// lightbox
+const lb = document.getElementById("lb");
+document.getElementById("grid").addEventListener("click", e=>{
+  const img = e.target.closest("img"); if(!img) return;
+  lb.querySelector("img").src = img.src; lb.classList.add("on");
+});
+lb.addEventListener("click", ()=> lb.classList.remove("on"));
+load();
+</script>
+</body>
+</html>

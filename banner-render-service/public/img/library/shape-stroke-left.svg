@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 560" fill="none" preserveAspectRatio="none">
+  <!-- horizontal stadium OUTLINE: rounded cap flush to the left edge (x=0),
+       top/bottom lines run to the right edge and bleed off (open side) -->
+  <path d="M1000 12 L268 12 A268 268 0 0 0 268 548 L1000 548"
+        stroke="#ffffff" stroke-width="20" stroke-linecap="round" fill="none"
+        vector-effect="non-scaling-stroke"/>
+</svg>

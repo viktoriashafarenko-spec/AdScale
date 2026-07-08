@@ -1,0 +1,13 @@
+<svg width="440" height="440" viewBox="0 0 440 440" fill="none" xmlns="http://www.w3.org/2000/svg">
+<rect x="0.5" y="0.5" width="439" height="439" rx="4.5" stroke="#9747FF" stroke-dasharray="10 5"/>
+<!-- Text highlights (lozenge) — GREEN / RED / WHITE. Wrap a word in a headline. -->
+<!-- GREEN -->
+<rect x="120" y="50" width="200" height="80" rx="40" fill="#5DA20A"/>
+<text x="220" y="106" text-anchor="middle" font-family="'Proxima Nova','Helvetica Neue',Arial,sans-serif" font-weight="800" font-size="40" letter-spacing="1" fill="#FFFFFF">GREEN</text>
+<!-- RED -->
+<rect x="120" y="180" width="200" height="80" rx="40" fill="#E4002B"/>
+<text x="220" y="236" text-anchor="middle" font-family="'Proxima Nova','Helvetica Neue',Arial,sans-serif" font-weight="800" font-size="40" letter-spacing="1" fill="#FFFFFF">RED</text>
+<!-- WHITE -->
+<rect x="120.5" y="310.5" width="199" height="79" rx="39.5" fill="#FFFFFF" stroke="#C5C5C5"/>
+<text x="220" y="366" text-anchor="middle" font-family="'Proxima Nova','Helvetica Neue',Arial,sans-serif" font-weight="800" font-size="40" letter-spacing="1" fill="#5DA20A">WHITE</text>
+</svg>

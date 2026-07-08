@@ -26,7 +26,12 @@ const __dirname = path.dirname(__filename);
 const app = express();
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ extended: true }));
-app.use(express.static(path.join(__dirname, "public")));
+app.use(express.static(path.join(__dirname, "public"), {
+  // always revalidate HTML/JS so edits show up on reload (no stale "nothing changed")
+  setHeaders: (res, filePath) => {
+    if (/\.(html|js|mjs)$/.test(filePath)) res.setHeader("Cache-Control", "no-cache, must-revalidate");
+  }
+}));
 
 const FIGMA_FILE_KEY = process.env.FIGMA_FILE_KEY || "";
 const GEMINI_IMAGE_LOCATION =
@@ -77,6 +82,7 @@ async function getTemplates() {
 }
 
 app.get("/", (req, res) => {
+  res.setHeader("Cache-Control", "no-cache, must-revalidate");
   res.sendFile(path.join(__dirname, "public", "index.html"));
 });
 

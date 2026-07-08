@@ -67,9 +67,9 @@ function setErr(id, msg){ const e=document.getElementById(id); if(!e)return; if(
 function showView(v){
   document.querySelectorAll(".view").forEach(el => el.classList.toggle("hidden", el.id !== ("view-"+v)));
   document.querySelectorAll(".nav-item").forEach(el => el.classList.toggle("active", el.dataset.view === v));
-  if (v === "banners"){ ensureTemplates(); renderPick(); }
+  if (v === "banners"){ ensureTemplates(); renderPick(); if (window.renderBuilder) window.renderBuilder(); }
   if (v === "saved") renderSaved();
-  if (v === "brand") renderSwatches();
+  if (v === "brand"){ renderSwatches(); buildLibMenu(); }
 }
 
 /* ---------- settings ---------- */
@@ -911,6 +911,62 @@ function renderSwatches(){
   s.dataset.done="1";
 }
 function setupChips(sel){ if(!sel) return; sel.querySelectorAll(".lang").forEach(c=>c.addEventListener("click",()=>c.classList.toggle("active"))); }
+
+/* ================= MODULE: brand elements library ================= */
+/* Building blocks exported from Figma (public/library). Each one auto-resizes
+   and will be auto-placed into the universal templates. */
+const LIBRARY = [
+  { grp:"Text", items:[
+    { id:"headline",    file:"library/headline.svg",    nm:"Headline",          ds:"Proxima Nova Black / Bold · resize" },
+    { id:"subheadline", file:"library/subheadline.svg", nm:"Subheadline",       ds:"Medium / Semibold · resize" },
+    { id:"highlight",   file:"library/highlight.svg",   nm:"Text highlight",    ds:"Lozenge — GREEN / RED / WHITE" },
+    { id:"disclaimer",  file:"library/disclaimer.svg",  nm:"Disclaimer",        ds:"Legal line / Omnibus · resize" },
+  ]},
+  { grp:"Price & promo", items:[
+    { id:"pricetag",    file:"library/pricetag.svg",    nm:"Pricetag",          ds:"simple · double · Omnibus" },
+    { id:"badge",       file:"library/badge/big.svg",   nm:"Discount badge",    ds:"−40% · green dome / red circle" },
+    { id:"for3",        file:"library/badge/3for2.svg", nm:"3 for 2",           ds:"Multibuy badge" },
+    { id:"promo",       file:"library/CTA/promo.svg",   nm:"Promo flag",        ds:"2+1 zdarma" },
+  ]},
+  { grp:"Buttons", items:[
+    { id:"cta",         file:"library/CTA/big.svg",     nm:"CTA button",        ds:"red / green / text link" },
+  ]},
+  { grp:"Brand & layout", items:[
+    { id:"logo",        file:"library/logo.svg",        nm:"Dr.Max logo",       ds:"big / small" },
+    { id:"background",  file:"library/background/small.svg", nm:"Background",   ds:"solid / gradient" },
+    { id:"shape",       file:"library/shape.svg",       nm:"Photo shape",       ds:"pill masks for the scene" },
+  ]},
+];
+function buildLibMenu(){
+  const menu = document.getElementById("libMenu");
+  if (!menu || menu.dataset.done) return;
+  menu.innerHTML = LIBRARY.map(g =>
+    `<div class="lib-grp">${esc(g.grp)}</div>` +
+    g.items.map(it =>
+      `<div class="lib-opt" onclick="selectLibElement('${it.id}')">
+         <img src="${esc(it.file)}" alt="">
+         <div><div class="nm">${esc(it.nm)}</div><div class="ds">${esc(it.ds)}</div></div>
+       </div>`
+    ).join("")
+  ).join("");
+  menu.dataset.done = "1";
+}
+function toggleLib(){ buildLibMenu(); document.getElementById("libDd").classList.toggle("open"); }
+function selectLibElement(id){
+  const it = LIBRARY.flatMap(g=>g.items).find(x=>x.id===id);
+  if (!it) return;
+  document.getElementById("libDd").classList.remove("open");
+  const p = document.getElementById("libPreview");
+  p.style.display = "flex";
+  p.innerHTML = `<div class="frame"><img src="${esc(it.file)}" alt="${esc(it.nm)}"></div>
+    <div class="meta"><div class="nm">${esc(it.nm)}</div><div class="ds">${esc(it.ds)}</div>
+    <span class="tag">auto-resize</span></div>`;
+}
+/* close the dropdown when clicking outside */
+document.addEventListener("click", (e)=>{
+  const dd = document.getElementById("libDd");
+  if (dd && dd.classList.contains("open") && !dd.contains(e.target)) dd.classList.remove("open");
+});
 
 /* ================= init: load default Dr.Max logo as dataURL ================= */
 (async ()=>{
