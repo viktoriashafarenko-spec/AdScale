@@ -20,7 +20,15 @@
   body{margin:0;font-family:'Montserrat',Arial,sans-serif;color:var(--ink);background:var(--bg);}
   .layout{display:flex;min-height:100vh;}
   /* sidebar */
-  .side{width:248px;background:var(--grey);color:#fff;display:flex;flex-direction:column;padding:22px 16px;flex-shrink:0;}
+  .side{width:248px;background:var(--grey);color:#fff;display:flex;flex-direction:column;padding:22px 16px;flex-shrink:0;position:relative;}
+  .side,.main{transition:margin-left .22s ease,max-width .22s ease;}
+  .side-collapse{position:absolute;top:10px;right:10px;width:26px;height:26px;border:none;border-radius:7px;background:rgba(255,255,255,.12);color:#cbd2da;cursor:pointer;font-size:12px;line-height:1;display:flex;align-items:center;justify-content:center;}
+  .side-collapse:hover{background:rgba(255,255,255,.22);color:#fff;}
+  .nav-show{position:fixed;top:14px;left:14px;z-index:130;width:40px;height:40px;border:none;border-radius:11px;background:var(--grey);color:#fff;font-size:18px;cursor:pointer;box-shadow:0 3px 10px rgba(0,0,0,.28);display:none;align-items:center;justify-content:center;}
+  .nav-show:hover{filter:brightness(1.15);}
+  .layout.nav-collapsed .side{margin-left:-248px;}
+  .layout.nav-collapsed .main{max-width:none;}
+  .layout.nav-collapsed .nav-show{display:flex;}
   .brand-badge{background:#fff;border-radius:12px;padding:12px 14px;display:inline-block;}
   .brand-badge img{display:block;width:150px;height:auto;}
   .brand-sub{font-size:11px;color:#a7aeb5;text-transform:uppercase;letter-spacing:.1em;margin-top:10px;}
@@ -117,6 +125,19 @@
   .pick .ck{position:absolute;top:5px;right:5px;width:20px;height:20px;border-radius:50%;background:var(--red);color:#fff;font-size:12px;font-weight:800;display:none;align-items:center;justify-content:center;}
   .pick.sel .ck{display:flex;}
   .pick .src-tag{position:absolute;bottom:4px;left:4px;background:rgba(43,47,51,.82);color:#fff;font-size:8px;font-weight:800;padding:1px 5px;border-radius:4px;text-transform:uppercase;letter-spacing:.03em;}
+  /* current background preview (Card 1) */
+  .bg-current{border:2px solid var(--line);border-radius:12px;overflow:hidden;cursor:pointer;background:#f4f6f8;aspect-ratio:16/9;display:flex;align-items:center;justify-content:center;position:relative;}
+  .bg-current:hover{border-color:var(--red);}
+  .bg-current img{width:100%;height:100%;object-fit:cover;display:block;}
+  .bg-current .bg-empty{color:var(--muted);font-size:12.5px;font-weight:600;text-align:center;padding:14px;}
+  .bg-current .bg-edit{position:absolute;top:6px;right:6px;background:rgba(43,47,51,.82);color:#fff;font-size:10px;font-weight:800;padding:3px 8px;border-radius:6px;}
+  /* modal overlay */
+  .modal-ov{position:fixed;inset:0;background:rgba(15,18,20,.55);backdrop-filter:blur(2px);display:flex;align-items:center;justify-content:center;z-index:200;padding:24px;}
+  .modal-box{background:#fff;border-radius:18px;width:min(880px,94vw);max-height:86vh;display:flex;flex-direction:column;box-shadow:0 24px 70px rgba(0,0,0,.35);overflow:hidden;}
+  .modal-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 20px;border-bottom:1px solid var(--line);font-size:16px;}
+  .modal-body{padding:18px 20px;overflow-y:auto;}
+  .modal-x{border:none;background:#f0f2f4;width:32px;height:32px;border-radius:9px;font-size:20px;line-height:1;cursor:pointer;color:var(--ink);font-weight:700;}
+  .modal-x:hover{background:#e3e6e9;}
   /* checkboxes */
   .chk{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:500;margin:7px 0;}
   .chk input{width:15px;height:15px;}
@@ -205,6 +226,22 @@
   .bld-fmtbar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:#fff;border:1px solid var(--line);border-radius:14px;padding:12px 16px;margin-bottom:16px;}
   .bld-fmtbar-lbl{font-weight:800;font-size:13px;color:var(--ink);}
   .bld-fmtbar #bTplInfo{margin-left:auto;font-size:12px;}
+  .sync-tgl{display:inline-flex;align-items:center;gap:8px;cursor:pointer;user-select:none;font-size:12.5px;font-weight:700;color:var(--ink);padding-left:6px;}
+  .sync-tgl input{display:none;}
+  .sync-track{width:38px;height:22px;border-radius:22px;background:#cbd2da;position:relative;transition:background .15s;flex-shrink:0;}
+  .sync-knob{position:absolute;top:2px;left:2px;width:18px;height:18px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.3);transition:left .15s;}
+  .sync-tgl input:checked + .sync-track{background:var(--green);}
+  .sync-tgl input:checked + .sync-track .sync-knob{left:18px;}
+  /* Campaign & copy horizontal bar (above the preview) */
+  .bld-copybar{padding:16px 20px;}
+  .bld-copybar h2{margin-bottom:12px;}
+  .copybar-grid{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;}
+  .copybar-grid .cb-field{display:flex;flex-direction:column;flex:1 1 150px;min-width:130px;}
+  .copybar-grid .cb-field .lbl{margin-bottom:5px;}
+  .copybar-grid .cb-wide{flex:2 1 240px;}
+  .copybar-grid .cb-lang .seg{margin:0;}
+  .copybar-grid .cb-actions{flex:0 0 auto;justify-content:flex-end;}
+  .copybar-grid .cb-actions .btn{white-space:nowrap;padding:11px 16px;}
   .bld-divider{height:1px;background:var(--line);margin:16px 0 6px;}
   /* format pills */
   .bld-formats{display:flex;flex-wrap:wrap;gap:8px;}
@@ -266,7 +303,9 @@
 </head>
 <body>
 <div class="layout">
+  <button class="nav-show" onclick="document.querySelector('.layout').classList.remove('nav-collapsed')" title="Show menu">☰</button>
   <aside class="side">
+    <button class="side-collapse" onclick="document.querySelector('.layout').classList.add('nav-collapsed')" title="Hide menu">◀</button>
     <div>
       <div class="brand-badge"><img src="img/drmax_logo.png" alt="Dr.Max"></div>
       <div class="brand-sub">AdScale Studio</div>
@@ -308,10 +347,13 @@
         <div id="prodFeed" class="hidden">
           <label class="lbl">Product feed URL (XML / CSV — e.g. Google Merchant)</label>
           <div style="display:flex;gap:8px;flex-wrap:wrap;">
-            <input id="feedUrl" type="text" value="https://www.drmax.pl/feed/google-merchant.xml" style="flex:1;min-width:260px;">
+            <input id="feedUrl" type="text" value="https://backend.drmax.pl/media/koongo/google_shopping/google_shopping_5462.xml" style="flex:1;min-width:260px;">
             <button class="btn ghost" onclick="connectFeed()">Connect feed</button>
           </div>
           <div class="muted" style="margin-top:6px;">The same feed you use for ads. Pick a product from the catalog — its packshot goes into generation.</div>
+          <div id="feedSearchWrap" class="hidden" style="margin-top:10px;">
+            <input id="feedSearch" type="text" placeholder="Search products… (e.g. Magnez, Vitamin D)" oninput="onFeedSearch()">
+          </div>
           <div id="feedStatus" class="muted" style="margin-top:8px;"></div>
           <div id="feedGrid" class="up-grid"></div>
         </div>
@@ -319,11 +361,12 @@
 
       <div class="card">
         <h2><span class="num">2</span>Shot style</h2>
-        <div class="muted" style="margin:-6px 0 10px;">Select one or more styles — variants will be created for each.</div>
+        <div class="muted" style="margin:-6px 0 10px;">Pick a style — variations will be created for it.</div>
         <div class="style-grid" id="styleGrid"></div>
         <div id="customWrap" class="hidden">
           <label class="lbl">Custom prompt</label>
           <textarea id="customPrompt" rows="3" placeholder="Describe the scene your own way, e.g. „product on a marble countertop, soft morning light, a green leaf beside it”…"></textarea>
+          <div id="customRefRow" style="display:flex;align-items:center;gap:10px;margin-top:8px;"></div>
         </div>
       </div>
 
@@ -346,12 +389,24 @@
             </select>
           </div>
           <div>
+            <label class="lbl">Product position <span class="muted" style="font-weight:500;font-size:11px;">— pick 1–3</span></label>
+            <div id="genPosition" class="seg"></div>
+          </div>
+          <div>
+            <label class="lbl">Model</label>
+            <select id="genModel">
+              <option value="gemini-3-pro-image-preview">Nano Banana Pro — flagship, best quality</option>
+              <option value="gemini-3.1-flash-image">Nano Banana 2 — Pro quality at Flash speed</option>
+              <option value="gemini-2.5-flash-image">Nano Banana — Gemini 2.5 Flash Image</option>
+            </select>
+          </div>
+          <div>
             <label class="lbl">Quality</label>
             <select id="genQuality"><option>1K</option><option>2K</option><option>4K</option></select>
           </div>
           <div>
             <label class="lbl">Variations per style</label>
-            <select id="genVars"><option>1</option><option>2</option><option>3</option><option selected>4</option><option>5</option></select>
+            <select id="genVars"><option>1</option><option>2</option><option selected>3</option><option>4</option><option>5</option></select>
           </div>
         </div>
         <div class="actions"><button class="btn green" id="btnGenImg" onclick="genImages()">Generate images →</button></div>
@@ -373,42 +428,49 @@
       <div class="bld-fmtbar">
         <span class="bld-fmtbar-lbl">Format</span>
         <div class="bld-formats" id="bFormats"></div>
+        <label class="sync-tgl" title="On: edits apply to every format. Off: only the selected format.">
+          <input type="checkbox" id="bSyncAll" checked>
+          <span class="sync-track"><span class="sync-knob"></span></span>
+          <span class="sync-txt">Apply to all formats</span>
+        </label>
         <span class="muted" id="bTplInfo"></span>
         <button class="btn green" id="bSavePng" type="button" style="padding:9px 15px;font-size:13px;white-space:nowrap;">⤓ Save PNG</button>
+      </div>
+
+      <div class="card bld-copybar">
+        <h2><span class="num">1</span>Campaign &amp; copy</h2>
+        <div class="copybar-grid">
+          <div class="cb-field cb-lang"><label class="lbl">Language</label><div id="bLang" class="seg"></div></div>
+          <div class="cb-field"><label class="lbl">Company / brand</label><input id="bCompany" type="text" value="Dr.Max"></div>
+          <div class="cb-field"><label class="lbl">Target group</label><input id="bTarget" type="text" value="women 35+"></div>
+          <div class="cb-field"><label class="lbl">Eyebrow</label><input id="bEyebrow" type="text" value="Health &amp; Beauty"></div>
+          <div class="cb-field cb-wide"><label class="lbl">Headline</label><input id="bHeadline" type="text" value="Everyday energy for the whole family"></div>
+          <div class="cb-field cb-wide"><label class="lbl">Subheadline</label><input id="bSub" type="text" value="Selected supplements with support for every day."></div>
+          <div class="cb-field"><label class="lbl">CTA</label><div style="display:flex;gap:6px;"><input id="bCta" type="text" value="See the offer" style="flex:1;min-width:90px;"><select id="bCtaVar" style="width:88px;"><option value="red">red</option><option value="green">green</option><option value="white">white</option></select></div></div>
+          <div class="cb-field cb-actions"><button class="btn" id="bGenCopy" type="button">✨ Generate copy →</button></div>
+        </div>
+        <div id="bCopyVars" class="bcopy-vars"></div>
+        <div id="bCopyErr" class="err hidden"></div>
       </div>
 
       <div class="bld">
         <div class="bld-side">
           <div class="card">
-            <h2><span class="num">1</span>Products</h2>
-            <div class="muted" style="margin:-6px 0 10px;">Upload product packshots — the AI uses them to write the copy.</div>
-            <input id="bProdInput" type="file" accept="image/*" multiple>
-            <div class="bprod-grid" id="bProdGrid"></div>
-          </div>
-          <div class="card">
-            <h2><span class="num">2</span>Campaign &amp; copy</h2>
-            <label class="lbl">Language</label><div id="bLang" class="seg" style="margin-bottom:12px;"></div>
-            <div style="display:flex;gap:10px;">
-              <div style="flex:1;"><label class="lbl">Company / brand</label><input id="bCompany" type="text" value="Dr.Max"></div>
-              <div style="flex:1;"><label class="lbl">Target group</label><input id="bTarget" type="text" value="women 35+"></div>
+            <h2><span class="num">2</span>Background</h2>
+            <div class="muted" style="margin:-6px 0 10px;">Choose an image from your generations as the banner background.</div>
+            <div id="bBgCurrent" class="bg-current" onclick="openBgModal()"></div>
+            <div class="actions" style="margin-top:10px;display:flex;gap:8px;">
+              <button class="btn green" type="button" onclick="showView('images')">✨ Generate new →</button>
             </div>
-            <div class="actions" style="margin:12px 0 0;"><button class="btn" id="bGenCopy" type="button">✨ Generate copy →</button></div>
-            <div id="bCopyVars" class="bcopy-vars"></div>
-            <div id="bCopyErr" class="err hidden"></div>
-            <div class="bld-divider"></div>
-            <label class="lbl">Eyebrow</label><input id="bEyebrow" type="text" value="Health &amp; Beauty">
-            <label class="lbl">Headline</label><input id="bHeadline" type="text" value="Everyday energy for the whole family">
-            <label class="lbl">Subheadline</label><input id="bSub" type="text" value="Selected supplements with support for every day.">
-            <label class="lbl">CTA</label>
-            <div style="display:flex;gap:8px;">
-              <input id="bCta" type="text" value="See the offer" style="flex:1;">
-              <select id="bCtaVar" style="width:120px;"><option value="red">red</option><option value="green">green</option><option value="white">white</option></select>
-            </div>
+            <div class="bld-divider" style="margin:14px 0 10px;"></div>
+            <label class="lbl">Fill &amp; adjust</label>
+            <div id="bBackground"></div>
+            <div class="bld-divider" style="margin:12px 0 10px;"></div>
+            <div id="bBgElements"></div>
+            <div id="bProdInfo" style="margin-top:10px;"></div>
           </div>
           <div class="card">
             <h2><span class="num">3</span>Layout</h2>
-            <label class="lbl">Background</label><div id="bBackground"></div>
-            <div class="bld-divider"></div>
             <label class="lbl">Shape</label><div id="bShape" class="seg"></div>
             <label class="lbl hidden" id="bPackshotLbl">Packshot</label><div id="bPackshot"></div>
             <label class="lbl">Blocks</label><div id="bBlocks" class="seg"></div>
@@ -511,10 +573,16 @@
       <p class="page-sub">Brand profile: logo, colors, typography. Generations and banners follow these rules.</p>
       <div class="card">
         <h2>Logo</h2>
-        <img src="img/drmax_logo.png" style="max-width:300px;width:100%;display:block;margin-bottom:14px;">
-        <label class="lbl">Custom logo (overrides the default on banners)</label>
-        <input id="logoInput" type="file" accept="image/*" />
-        <div id="logoPreview" class="muted" style="margin-top:8px;">The default Dr.Max logo is being used.</div>
+        <img src="img/drmax_logo.png" style="max-width:300px;width:100%;display:block;">
+      </div>
+      <div class="card">
+        <h2>Image generation — styles &amp; brand look</h2>
+        <p class="muted" style="margin:-6px 0 12px;">These prompts drive AI image generation. Edit them here — changes are saved and used on the next generation.</p>
+        <div id="brandGenSettings"></div>
+        <div class="actions">
+          <button class="btn" id="brandGenSave" type="button">Save</button>
+          <button class="btn ghost" id="brandGenReset" type="button">Reset to defaults</button>
+        </div>
       </div>
       <div class="card"><h2>Colors</h2><div class="swatches" id="swatches"></div></div>
       <div class="card"><h2>Typography</h2><div class="muted" style="margin-bottom:10px;">Banner typeface: <b style="color:var(--ink)">Proxima Nova</b> — Regular / Semibold / Bold.</div>
@@ -538,7 +606,22 @@
 </div>
 
 <div class="lightbox hidden" id="lightbox" onclick="closeLightbox()"><span class="lb-close">×</span><img src="" alt=""></div>
-<script src="cabinet.js?v=14"></script>
-<script type="module" src="builder.js?v=45"></script>
+
+<div id="bgModal" class="modal-ov hidden" onclick="if(event.target===this)closeBgModal()">
+  <div class="modal-box">
+    <div class="modal-head">
+      <b>Choose a background</b>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <button class="btn ghost" type="button" onclick="refreshBgModal()" style="padding:7px 12px;font-size:12px;">↻ Refresh</button>
+        <button class="btn green" type="button" onclick="closeBgModal(); showView('images');" style="padding:7px 12px;font-size:12px;">✨ Generate new →</button>
+        <button class="modal-x" type="button" onclick="closeBgModal()">×</button>
+      </div>
+    </div>
+    <div class="modal-body"><div class="pick-grid" id="bgModalGrid"><div class="muted">Loading…</div></div></div>
+  </div>
+</div>
+
+<script src="cabinet.js?v=33"></script>
+<script type="module" src="builder.js?v=51"></script>
 </body>
 </html>

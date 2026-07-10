@@ -20,6 +20,27 @@ export async function uploadPng(bucketName, buffer, prefix = "scenes", customMet
   return `https://storage.googleapis.com/${bucketName}/${encodeURIComponent(key)}`;
 }
 
+// Write a JSON object to a FIXED key (overwrite) — used for per-client brand config.
+export async function writeJson(bucketName, key, obj) {
+  if (!bucketName) throw new Error("bucketName is required");
+  await storage.bucket(bucketName).file(key).save(Buffer.from(JSON.stringify(obj)), {
+    contentType: "application/json",
+    resumable: false,
+    metadata: { cacheControl: "no-store" }
+  });
+  return true;
+}
+
+// Read a JSON object from a fixed key (null if it doesn't exist yet).
+export async function readJson(bucketName, key) {
+  if (!bucketName) throw new Error("bucketName is required");
+  const file = storage.bucket(bucketName).file(key);
+  const [exists] = await file.exists();
+  if (!exists) return null;
+  const [buf] = await file.download();
+  try { return JSON.parse(buf.toString("utf8")); } catch(_) { return null; }
+}
+
 // List saved assets under a prefix (e.g. clients/drmax/images/) with their custom metadata.
 export async function listFiles(bucketName, prefix) {
   if (!bucketName) throw new Error("bucketName is required");

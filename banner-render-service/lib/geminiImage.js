@@ -113,7 +113,10 @@ export async function generateImageWithProducts({
     .filter(Boolean);
 
   const compositionRef = await getCompositionReference();
-  const styleRef = styleReferenceUrl ? await fetchUrlAsInlineData(styleReferenceUrl) : null;
+  // style reference may be a data: URL (uploaded in the browser) or an http(s) URL
+  const styleRef = styleReferenceUrl
+    ? (dataUrlParts(styleReferenceUrl) || await fetchUrlAsInlineData(styleReferenceUrl))
+    : null;
 
   const url =
     `https://${location === "global" ? "aiplatform" : `${location}-aiplatform`}.googleapis.com/v1/projects/${project}` +

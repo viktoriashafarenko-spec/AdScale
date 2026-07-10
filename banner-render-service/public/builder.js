@@ -1,8 +1,8 @@
 /* Adaptive builder — lives inside Banner creation. Powered by the SAME modules
    the server render uses (public/lib). Products → AI copy → live adaptive preview.
    Everything auto-resizes via container queries; per-element colors are editable. */
-import { renderBannerInner, assembleCss, SIZES, placementsFor } from "./lib/templates.js?v=45";
-import { ELEMENTS } from "./lib/elements.js?v=45";
+import { renderBannerInner, assembleCss, SIZES, placementsFor } from "./lib/templates.js?v=46";
+import { ELEMENTS } from "./lib/elements.js?v=46";
 
 (function injectCss(){
   if (document.getElementById("adaptive-css")) return;
@@ -70,6 +70,8 @@ const state = {
   logoPos: "br",  // logo corner: tl | tr | bl | br
   bgByFormat: {}, // per-format background image { image, imgX, imgY, imgScale }
   lang: "en",     // banner copy language: en | cz | pl
+  syncAll: true,       // ON = edits apply to every format; OFF = only the selected format
+  looksByFormat: {},   // per-format design snapshots — used only when syncAll is off
   _langInit: false
 };
 // language switcher — fills the copy fields with the chosen language
@@ -207,6 +209,52 @@ function applyVariant(v){
   buildElements(); render();
 }
 
+/* ---------- per-format sync: apply edits to every format (on) or just one (off) ---------- */
+function readCopyInputs(){
+  return { eyebrow:val("bEyebrow"), headline:val("bHeadline"), sub:val("bSub"), cta:val("bCta"), ctaVar:val("bCtaVar") };
+}
+function writeCopyInputs(c){
+  if (!c) return;
+  const set = (id,v)=>{ const el=document.getElementById(id); if (el && v!=null) el.value=v; };
+  set("bEyebrow",c.eyebrow); set("bHeadline",c.headline); set("bSub",c.sub); set("bCta",c.cta); set("bCtaVar",c.ctaVar);
+  if (c.ctaVar && state.cfg.cta) state.cfg.cta.props.variant = c.ctaVar;
+}
+// a format's full "design" — everything except the (already per-format) background
+function snapshotLook(){
+  return {
+    cfg: JSON.parse(JSON.stringify(state.cfg)),
+    block: state.block, side: state.side, align: state.align, logoPos: state.logoPos,
+    copy: readCopyInputs()
+  };
+}
+function applyLook(look){
+  if (!look) return;
+  state.cfg = JSON.parse(JSON.stringify(look.cfg));
+  state.block = look.block; state.side = look.side; state.align = look.align; state.logoPos = look.logoPos;
+  writeCopyInputs(look.copy);
+}
+// toggle handler — unify everything to the current design at the moment of switching
+function setSyncAll(on){
+  state.syncAll = on;
+  const snap = snapshotLook();
+  const curBg = { ...getBg() };
+  Object.keys(SIZES).forEach(k => { state.bgByFormat[k] = { ...curBg }; });   // same background on every size at toggle time
+  if (on){
+    state.looksByFormat = {};                                                 // one shared design from here on
+  } else {
+    Object.keys(SIZES).forEach(k => { state.looksByFormat[k] = JSON.parse(JSON.stringify(snap)); });  // independent copy per format
+  }
+  render();
+}
+function wireSyncToggle(){
+  const el = document.getElementById("bSyncAll");
+  if (el && !el.dataset.w){
+    el.checked = state.syncAll;
+    el.addEventListener("change", ()=> setSyncAll(el.checked));
+    el.dataset.w = "1";
+  }
+}
+
 /* ---------- format pills ---------- */
 function buildFormats(){
   const box = document.getElementById("bFormats"); if (!box) return;
@@ -215,9 +263,19 @@ function buildFormats(){
     `<span class="bld-fmt${k===state.format?" on":""}" data-k="${k}" title="${SIZES[k].channel}">${k}${SIZES[k].scale?` ×${SIZES[k].scale}`:""}</span>`
   ).join("");
   box.querySelectorAll(".bld-fmt").forEach(p => p.addEventListener("click", ()=>{
-    state.format = p.dataset.k;
+    const next = p.dataset.k;
+    if (next === state.format) return;
+    if (state.syncAll){
+      state.bgByFormat[next] = { ...getBg() };              // carry the shared background to the new size
+      state.format = next;
+    } else {
+      state.looksByFormat[state.format] = snapshotLook();   // save the format we're leaving
+      state.format = next;
+      if (state.looksByFormat[next]) applyLook(state.looksByFormat[next]);   // restore the target's own design
+      else state.looksByFormat[next] = snapshotLook();      // first visit → seed from current design
+    }
     box.querySelectorAll(".bld-fmt").forEach(x=>x.classList.toggle("on", x.dataset.k===state.format));
-    buildElements(); buildBackground(); buildPackshot();   // background scale/source is per-format
+    buildLayout(); buildElements(); buildBackground(); buildPackshot();
     render();   // placement is driven by the Layout controls (applyLayout)
   }));
 }
@@ -326,7 +384,8 @@ function propControl(id, prop){
 }
 // elements are split across three cards: Layout extras / main texts / promo & decoration
 const EL_GROUPS = {
-  bLayoutElements: ["scene", "pattern", "legal", "logo"],            // Layout card
+  bBgElements:     ["pattern"],                                      // Background card
+  bLayoutElements: ["scene", "legal", "logo"],                       // Layout card
   bElements:       ["eyebrow", "headline", "subheadline", "cta"],    // Text & colors
   bDecor:          ["badge", "pricetag", "promoFlag"],  // Promo & decoration
 };
@@ -373,8 +432,7 @@ function buildBackground(){
   const hasImg = !!getBg().image;
   let html = `<div class="bel-props" style="margin-top:0;">${props.map(p=>propControl("background",p)).join("")}</div>`;
   html += `<div class="bel-props" style="margin-top:8px;">
-      <button class="bld-mini${hasImg?"":" on"}" data-bgsrc="gradient">Gradient</button>
-      <button class="bld-mini${hasImg?" on":""}" data-bgsrc="library">Library image…</button>
+      <button class="bld-mini${hasImg?"":" on"}" data-bgsrc="gradient">${hasImg ? "✕ Remove image (use gradient)" : "Gradient"}</button>
     </div>`;
   if (hasImg) html += `<div class="bel-props" style="margin-top:6px;">
       <span class="bel-prop"><label>scale %</label><input type="number" data-el="background" data-key="imgScale" value="${escm(getBg().imgScale ?? 100)}"></span>
@@ -585,9 +643,32 @@ window.renderBuilder = function(){
   if (!document.getElementById("bStage")) return;   // banners view not in DOM yet
   applyLayout();   // scene placement + flip are driven by the Layout controls
   if (!state._langInit){ applyLangValues(state.lang); state._langInit = true; }  // seed English copy once
-  wireProducts(); wireCopyGen(); wireCopyInputs(); wireSavePng();
+  wireProducts(); wireCopyGen(); wireCopyInputs(); wireSavePng(); wireSyncToggle();
   buildFormats(); buildLang(); buildLayout(); buildElements(); buildBackground();
   render();
+};
+
+// called from the Image-generation module ("Use" button): drop a generated scene in as
+// the current format's background, then refresh the builder.
+window.useSceneInBuilder = function(url){
+  if (!url) return;
+  const bg = getBg();
+  bg.image = url; bg.imgX = 50; bg.imgY = 50; bg.imgScale = 100;
+  if (document.getElementById("bStage")){ buildBackground(); render(); }
+};
+
+// called from the Image-generation module: reuse the products picked/uploaded there so
+// AI copy and packshot-in-shape keep working without a separate upload in the builder.
+window.setBuilderProducts = function(prods){
+  state.products = (prods||[]).map(p => ({ name:p.name, fileName:p.fileName, dataUrl:p.dataUrl }));
+  const info = document.getElementById("bProdInfo");
+  if (info){
+    info.innerHTML = state.products.length
+      ? `<div class="muted" style="margin-bottom:6px;">Products from generation (used for AI copy &amp; shapes): <b>${state.products.length}</b></div>`
+        + `<div class="bprod-grid">` + state.products.map(p=>`<div class="bprod"><img src="${escm(p.dataUrl)}" alt=""></div>`).join("") + `</div>`
+      : "";
+  }
+  if (document.getElementById("bStage")) render();
 };
 
 /* ---------- export the current banner preview to PNG (native resolution) ---------- */

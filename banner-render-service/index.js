@@ -17,7 +17,7 @@ import {
   getScenePrompts,
   editImage
 } from "./lib/geminiImage.js";
-import { uploadPng, listFiles } from "./lib/storage.js";
+import { uploadPng, listFiles, writeJson, readJson } from "./lib/storage.js";
 import { fitSceneToBanner } from "./lib/sceneFit.js";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -27,6 +27,9 @@ const app = express();
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, "public"), {
+  // don't 301-redirect bare directory names (e.g. /library) — that shadows the
+  // /library API route because public/library/ exists (Figma building blocks).
+  redirect: false,
   // always revalidate HTML/JS so edits show up on reload (no stale "nothing changed")
   setHeaders: (res, filePath) => {
     if (/\.(html|js|mjs)$/.test(filePath)) res.setHeader("Cache-Control", "no-cache, must-revalidate");
@@ -84,6 +87,87 @@ async function getTemplates() {
 app.get("/", (req, res) => {
   res.setHeader("Cache-Control", "no-cache, must-revalidate");
   res.sendFile(path.join(__dirname, "public", "index.html"));
+});
+
+// ── per-client brand config (image-gen brand look, style prompts, style references) ──
+const brandCfgKey = (client) =>
+  `clients/${String(client || "default").replace(/[^a-z0-9_-]/gi, "") || "default"}/brand-config.json`;
+
+app.get("/brand-config", async (req, res) => {
+  try {
+    res.setHeader("Cache-Control", "no-store");
+    const cfg = await readJson(SCENES_BUCKET, brandCfgKey(req.query.client));
+    res.json(cfg || {});
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post("/brand-config", async (req, res) => {
+  try {
+    const { client = "default", base = null, styles = {}, refs = {} } = req.body || {};
+    await writeJson(SCENES_BUCKET, brandCfgKey(client), { base, styles, refs, savedAt: Date.now() });
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// ── product feed (Google Merchant XML) — fetched + parsed server-side, cached, searchable ──
+let _feedCache = { url: "", at: 0, items: [] };
+function parseMerchantFeed(xml) {
+  const items = [];
+  const field = (b, tag) => {
+    const m = b.match(new RegExp(`<${tag}>(?:<!\\[CDATA\\[)?([\\s\\S]*?)(?:\\]\\]>)?</${tag}>`));
+    return m ? m[1].trim() : "";
+  };
+  for (const chunk of xml.split("</item>")) {
+    const i = chunk.indexOf("<item>"); if (i === -1) continue;
+    const b = chunk.slice(i);
+    const image = field(b, "g:image_link"); if (!image) continue;
+    items.push({
+      id: field(b, "g:id"), title: field(b, "g:title"), price: field(b, "g:price"),
+      brand: field(b, "g:brand"), image, link: field(b, "link"), type: field(b, "g:product_type")
+    });
+  }
+  return items;
+}
+app.get("/feed", async (req, res) => {
+  try {
+    const url = String(req.query.url || "");
+    if (!/^https:\/\//.test(url)) return res.status(400).json({ error: "https feed url required" });
+    const q = String(req.query.q || "").trim().toLowerCase();
+    const limit = Math.min(120, Math.max(1, parseInt(req.query.limit, 10) || 48));
+    if (_feedCache.url !== url || Date.now() - _feedCache.at > 15 * 60 * 1000) {
+      const r = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0 AdScale/1.0" } });
+      if (!r.ok) return res.status(502).json({ error: `feed fetch failed (${r.status})` });
+      _feedCache = { url, at: Date.now(), items: parseMerchantFeed(await r.text()) };
+    }
+    let items = _feedCache.items;
+    if (q) items = items.filter(p => p.title.toLowerCase().includes(q) || (p.brand || "").toLowerCase().includes(q));
+    res.setHeader("Cache-Control", "no-store");
+    res.json({ total: _feedCache.items.length, count: Math.min(items.length, limit), items: items.slice(0, limit) });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+app.get("/proxy-image", async (req, res) => {
+  try {
+    const url = String(req.query.url || "");
+    if (!/^https:\/\/(backend\.)?drmax\.pl\//.test(url)) return res.status(400).send("blocked host");
+    const r = await fetch(url);
+    if (!r.ok) return res.status(r.status).send("fetch failed");
+    res.setHeader("Content-Type", r.headers.get("content-type") || "image/jpeg");
+    res.setHeader("Cache-Control", "public, max-age=86400");
+    res.send(Buffer.from(await r.arrayBuffer()));
+  } catch (e) { res.status(500).send(String(e.message)); }
+});
+// force a real file download (cross-origin GCS images can't be downloaded with <a download>)
+app.get("/download", async (req, res) => {
+  try {
+    const url = String(req.query.url || "");
+    if (!/^https:\/\/(storage\.googleapis\.com|[a-z0-9.-]+\.cloudfront\.net|(backend\.)?drmax\.pl)\//.test(url)) return res.status(400).send("blocked host");
+    const name = String(req.query.name || "image.png").replace(/[^\w.\-]/g, "_");
+    const r = await fetch(url);
+    if (!r.ok) return res.status(r.status).send("fetch failed");
+    res.setHeader("Content-Type", r.headers.get("content-type") || "image/png");
+    res.setHeader("Content-Disposition", `attachment; filename="${name}"`);
+    res.send(Buffer.from(await r.arrayBuffer()));
+  } catch (e) { res.status(500).send(String(e.message)); }
 });
 
 const PORT = parseInt(process.env.PORT, 10) || 8080;
@@ -378,6 +462,7 @@ app.post("/generate-scenes", async (req, res) => {
       styleReferenceUrl = null,
       prompts: clientPrompts = null,
       imageSize: requestedSize = "",
+      model: requestedModel = "",
       client = "default",
       composition = true
     } = req.body;
@@ -391,6 +476,8 @@ app.post("/generate-scenes", async (req, res) => {
     const aspectRatio = ALLOWED_ASPECTS.includes(requestedAspect) ? requestedAspect : GENERATION_ASPECT;
     const ALLOWED_SIZES = ["1K","2K","4K"];
     const imageSize = ALLOWED_SIZES.includes(requestedSize) ? requestedSize : GENERATION_IMAGE_SIZE;
+    const ALLOWED_MODELS = ["gemini-3-pro-image-preview", "gemini-3-pro-image", "gemini-3.1-flash-image", "gemini-2.5-flash-image", "gemini-2.0-flash-preview-image-generation"];
+    const genModel = ALLOWED_MODELS.includes(requestedModel) ? requestedModel : GEMINI_IMAGE_MODEL;
 
     const productsWithImages = products.filter(
       (p) => p.dataUrl || p.imageDataUrl
@@ -401,7 +488,7 @@ app.post("/generate-scenes", async (req, res) => {
     if (Array.isArray(clientPrompts) && clientPrompts.length) {
       prompts = clientPrompts
         .slice(0, 30)
-        .map((p, i) => ({ id: p.label || p.id || `p${i + 1}`, text: String(p.text || p.prompt || "").trim() }))
+        .map((p, i) => ({ id: p.label || p.id || `p${i + 1}`, text: String(p.text || p.prompt || "").trim(), styleRef: p.styleRef || null }))
         .filter((p) => p.text);
     } else {
       const promptsForAspect = getScenePrompts(aspectRatio);
@@ -410,57 +497,58 @@ app.post("/generate-scenes", async (req, res) => {
     }
     if (!prompts.length) throw new Error("No prompts to generate");
 
-    const sceneBuffers = [];
+    // Generate each variant; a single failure NO LONGER kills the whole batch —
+    // we collect what succeeds and return a partial result (null in place of failures).
+    const bufs = [];
+    let failed = 0;
+    let lastErr = null;
     for (let idx = 0; idx < prompts.length; idx++) {
       const p = prompts[idx];
       let buf = null;
-      let lastErr = null;
-      for (let attempt = 0; attempt < 3 && !buf; attempt++) {
+      for (let attempt = 0; attempt < 5 && !buf; attempt++) {
         try {
           buf = await generateImageWithProducts({
             project,
             location: GEMINI_IMAGE_LOCATION,
-            model: GEMINI_IMAGE_MODEL,
+            model: genModel,
             prompt: p.text,
             products: productsWithImages,
             aspectRatio,
             imageSize,
-            styleReferenceUrl,
+            styleReferenceUrl: p.styleRef || styleReferenceUrl,
             useCompositionRef
           });
         } catch (e) {
           lastErr = e;
           const isQuota = String(e.message || "").includes("429");
-          if (!isQuota) {
-            console.warn(`Gemini error variant ${idx}:`, e.message);
-            break;
-          }
+          if (!isQuota) { console.warn(`Gemini error variant ${idx}:`, e.message); break; }
           console.warn(`Gemini 429 variant ${idx} attempt ${attempt + 1}`);
-          await new Promise((r) => setTimeout(r, 6000));
+          await new Promise((r) => setTimeout(r, Math.min(30000, 4000 * Math.pow(2, attempt)) + Math.random() * 1500));
         }
       }
-      if (!buf) {
-        throw new Error(
-          `Gemini Image failed for variant ${idx}: ${lastErr?.message || "unknown error"}`
-        );
-      }
-      sceneBuffers.push(buf);
+      if (!buf) { failed++; console.warn(`variant ${idx} skipped after retries`); }
+      bufs.push(buf || null);
+    }
+    if (bufs.every((b) => !b)) {
+      throw new Error(`All ${prompts.length} generations failed: ${lastErr?.message || "unknown error"}`);
     }
 
+    // upload only the successes; keep index alignment (null for skipped) so the client maps by position
     const urls = await Promise.all(
-      sceneBuffers.map((buf, i) =>
-        uploadPng(SCENES_BUCKET, buf, `clients/${clientId}/tmp`, {
-          client: clientId,
-          label: prompts[i]?.id || "",
-          format: aspectRatio
-        })
+      bufs.map((buf, i) =>
+        buf
+          ? uploadPng(SCENES_BUCKET, buf, `clients/${clientId}/tmp`, {
+              client: clientId, label: prompts[i]?.id || "", format: aspectRatio
+            })
+          : Promise.resolve(null)
       )
     );
 
     res.json({
       scenes: urls,
+      failed,
       prompts: prompts.map((p) => ({ id: p.id, text: p.text })),
-      model: GEMINI_IMAGE_MODEL,
+      model: genModel,
       productImages: productsWithImages.length
     });
   } catch (e) {

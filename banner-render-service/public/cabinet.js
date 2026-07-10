@@ -67,7 +67,12 @@ function setErr(id, msg){ const e=document.getElementById(id); if(!e)return; if(
 function showView(v){
   document.querySelectorAll(".view").forEach(el => el.classList.toggle("hidden", el.id !== ("view-"+v)));
   document.querySelectorAll(".nav-item").forEach(el => el.classList.toggle("active", el.dataset.view === v));
-  if (v === "banners"){ ensureTemplates(); renderPick(); if (window.renderBuilder) window.renderBuilder(); }
+  if (v === "banners"){
+    ensureTemplates(); renderPick();
+    if (window.renderBuilder) window.renderBuilder();
+    if (window.setBuilderProducts) window.setBuilderProducts(uploadedProducts);  // reuse products from the generation tab (copy + shapes)
+    updateBgCurrent(pickedSceneUrl);
+  }
   if (v === "saved") renderSaved();
   if (v === "brand"){ renderSwatches(); buildLibMenu(); }
 }
@@ -115,43 +120,51 @@ function prodTab(t){
   document.getElementById("prodFeed").classList.toggle("hidden", t!=="feed");
   document.querySelectorAll("#prodTabs .tab").forEach(b=>b.classList.toggle("active", b.dataset.tab===t));
 }
-const DEMO_FEED = [
-  { name:"Vichy Liftactiv Collagen Specialist Serum Eye", price:"149,99 zł", img:"img/styles/studio.png" },
-  { name:"Vichy Minéral 89 Booster", price:"89,99 zł", img:"img/styles/in_water.png" },
-  { name:"Vichy Liftactiv Supreme", price:"169,99 zł", img:"img/styles/in_hand.png" },
-  { name:"Vichy Capital Soleil SPF50", price:"79,99 zł", img:"img/styles/interior.png" },
-  { name:"Vichy Normaderm Phytosolution", price:"74,99 zł", img:"img/styles/with_person.png" }
-];
-function connectFeed(){
+let feedItems = [];   // last loaded feed products (from the real feed)
+async function loadFeed(q){
   const g = document.getElementById("feedGrid"), st = document.getElementById("feedStatus");
-  st.textContent = ""; g.innerHTML = `<div class="loading"><div class="spin"></div> Fetching and parsing feed…</div>`;
-  setTimeout(()=>{
-    g.innerHTML = DEMO_FEED.map((p,i)=>`
-      <div class="up-card feed-card" data-i="${i}" onclick="pickFeedProduct(${i})">
-        <img src="${esc(p.img)}">
-        <div class="nm">${esc(p.name)}</div>
-        <div class="pr">${esc(p.price)}</div>
-      </div>`).join("");
+  const url = (document.getElementById("feedUrl").value || "").trim();
+  if (!url){ st.textContent = "Enter a feed URL first."; return; }
+  g.innerHTML = `<div class="loading"><div class="spin"></div> Loading catalog…</div>`;
+  try {
+    const r = await fetch(`/feed?url=${encodeURIComponent(url)}&q=${encodeURIComponent(q||"")}&limit=48`);
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || "feed error");
+    feedItems = d.items || [];
+    document.getElementById("feedSearchWrap")?.classList.remove("hidden");
+    if (!feedItems.length){
+      g.innerHTML = `<div class="muted" style="padding:14px;">No products found${q?` for „${esc(q)}”`:""}.</div>`;
+    } else {
+      g.innerHTML = feedItems.map((p,i)=>`
+        <div class="up-card feed-card" data-i="${i}" data-pid="${esc(p.id)}" onclick="pickFeedProduct(${i})">
+          <img src="/proxy-image?url=${encodeURIComponent(p.image)}" loading="lazy" alt="">
+          <div class="nm">${esc(p.title)}</div>
+          <div class="pr">${esc(p.price||"")}</div>
+        </div>`).join("");
+    }
+    st.innerHTML = `Showing <b>${d.count}</b> of ${d.total} products${q?` matching „${esc(q)}”`:""} — click to add (up to ${MAX_PRODUCTS} per scene).`;
     syncFeedSel();
-  }, 1000);
+  } catch(e){ g.innerHTML = ""; st.innerHTML = `<span class="err">Feed error: ${esc(e.message)}</span>`; }
 }
+function connectFeed(){ loadFeed(document.getElementById("feedSearch")?.value || ""); }
+let _feedT;
+function onFeedSearch(){ clearTimeout(_feedT); _feedT = setTimeout(()=> loadFeed(document.getElementById("feedSearch").value.trim()), 350); }
 async function pickFeedProduct(i){
-  const p = DEMO_FEED[i], id = "feed"+i;
+  const p = feedItems[i]; if (!p) return;
+  const id = "feed" + p.id;
   if (uploadedProducts.find(x=>x.id===id)){
     uploadedProducts = uploadedProducts.filter(x=>x.id!==id);
   } else {
     if (uploadedProducts.length >= MAX_PRODUCTS){ alert(`Up to ${MAX_PRODUCTS} products in one scene.`); return; }
-    const u = await blobToDataURL(await fetch(p.img).then(r=>r.blob()));
-    uploadedProducts.push({ id, fileName:p.name, name:p.name, dataUrl:u });
+    try {
+      const blob = await fetch(`/proxy-image?url=${encodeURIComponent(p.image)}`).then(r=>{ if(!r.ok) throw new Error("img"); return r.blob(); });
+      uploadedProducts.push({ id, fileName:p.title, name:p.title, dataUrl: await blobToDataURL(blob) });
+    } catch(e){ alert("Could not load that product image."); return; }
   }
   syncFeedSel(); renderProducts();
 }
 function syncFeedSel(){
-  document.querySelectorAll("#feedGrid .feed-card").forEach(c=>c.classList.toggle("sel", !!uploadedProducts.find(x=>x.id==="feed"+c.dataset.i)));
-  const st = document.getElementById("feedStatus");
-  if (st) st.innerHTML = uploadedProducts.length
-    ? `In scene: <b>${uploadedProducts.length}/${MAX_PRODUCTS}</b> products (click to add / remove).`
-    : `Pick products from the catalog (up to ${MAX_PRODUCTS} in one scene).`;
+  document.querySelectorAll("#feedGrid .feed-card").forEach(c=>c.classList.toggle("sel", !!uploadedProducts.find(x=>x.id==="feed"+c.dataset.pid)));
 }
 
 const logoInput = document.getElementById("logoInput");
@@ -204,20 +217,21 @@ function renderStyles(){
   g.dataset.done = "1";
 }
 function toggleStyle(el){
-  el.classList.toggle("active");
-  if (el.dataset.style === "custom"){
-    document.getElementById("customWrap").classList.toggle("hidden", !el.classList.contains("active"));
-  }
+  // single-select: exactly one style active at a time
+  document.querySelectorAll("#styleGrid .style-card").forEach(c => c.classList.toggle("active", c === el));
+  document.getElementById("customWrap").classList.toggle("hidden", el.dataset.style !== "custom");
 }
 
 /* Style base-prompts + variation suffixes → built into the style × variation matrix sent to the engine.
    (Ported / adapted from the n8n packshotscale flow; composite of the provided product packshot(s).) */
+// Dr.Max brand look — prepended to EVERY style so all shots share one brand DNA
+const DRMAX_BASE = "DR.MAX BRAND LOOK: bright, clean, trustworthy health-and-beauty pharmacy aesthetic — soft even professional lighting, the product crisp and sharp in focus, gentle natural shadow, fresh and premium yet friendly European drugstore mood, clean vivid colours, uncluttered with calm negative space.";
 const STYLE_PROMPTS = {
-  studio: "Premium studio packshot using the provided product packshot(s) as the exact product reference. The product(s) stand on a clean seamless light background with a soft natural shadow. Minimal, elegant e-commerce hero look. Preserve exact packaging from reference: shape, cap, logo, label text, colours. Show ONLY the provided product(s), nothing else.",
-  in_water: "Premium beauty visual using the provided product packshot(s) as the exact product reference. The product(s) rest on the calm surface of clear clean water with subtle concentric ripples and delicate droplets. Fresh, hydrating mood, soft refracted light. Preserve exact packaging from reference: shape, cap, logo, label text, colours. Show ONLY the provided product(s).",
-  in_hand: "Lifestyle visual using the provided product packshot(s) as the exact product reference. A well-groomed hand holds the product naturally with a soft warm bokeh background. Aspirational and tactile. Preserve exact packaging from reference: logo, label text, colours, shape. Show ONLY the provided product(s).",
-  with_person: "Lifestyle beauty visual using the provided product packshot(s) as the exact product reference. A model with healthy glowing skin presents the product beside her face on a soft neutral studio background. Aspirational skincare mood. Preserve exact packaging from reference. Show ONLY the provided product(s).",
-  interior: "Premium lifestyle still life using the provided product packshot(s) as the exact product reference. The product(s) arranged on a marble bathroom counter with soft natural window light, neutral folded towels and a sprig of greenery. Calm spa-like wellness mood. Preserve exact packaging from reference. Show ONLY the provided product(s)."
+  studio:      "E-commerce hero on a smooth Dr.Max green gradient background (fresh green fading to deeper green), seamless studio light with a soft grounded shadow. Minimal, clean, brand-forward.",
+  in_water:    "Fresh hydration scene: the product on a calm clear water surface with subtle ripples and a few clean droplets, cool airy light — health-and-beauty freshness.",
+  in_hand:     "Lifestyle: a well-groomed hand presents the product naturally against a soft warm bokeh, aspirational and tactile, bright and clean.",
+  with_person: "Beauty lifestyle: a model with healthy glowing skin holds the product near her face on a soft neutral studio backdrop, aspirational skincare and wellness mood.",
+  interior:    "Wellness still life: the product on a clean bright bathroom or kitchen counter in soft daylight, a sprig of fresh greenery and minimal props, calm spa-like mood."
 };
 const VARIATION_SUFFIX = [
   "Product centered, front-facing. Clean and minimal. Soft even lighting.",
@@ -229,6 +243,145 @@ const VARIATION_SUFFIX = [
 // Prepended to every prompt — hard guard against the model inventing other products.
 const ANTI_HALLUCINATION = "CRITICAL PRODUCT FIDELITY: Use ONLY the exact product(s) shown in the attached reference image(s). Reproduce every product's packaging, box shape, logo, label text and colours EXACTLY as in the reference. Do NOT invent, add, swap or imagine ANY other products — every single product visible in the output must be one of the attached references and nothing else. If multiple products are attached, include all of them and only them.";
 
+/* ----- product position (adapts to the format's orientation) ----- */
+function positionOptionsFor(aspect){
+  const [w,h] = String(aspect).split(":").map(Number);
+  if (h > w) return [{v:"top",t:"Top"},{v:"center",t:"Center"},{v:"bottom",t:"Bottom"}];   // vertical
+  return [{v:"left",t:"Left"},{v:"center",t:"Center"},{v:"right",t:"Right"}];               // horizontal / square
+}
+function updatePositionOptions(){
+  const box = document.getElementById("genPosition"); if (!box) return;
+  const fmt = document.getElementById("genFormat")?.value || "1:1";
+  const opts = positionOptionsFor(fmt);
+  const prev = new Set([...box.querySelectorAll(".opt.on")].map(o=>o.dataset.v));  // keep selection across format changes
+  box.innerHTML = opts.map(o=>`<span class="opt${prev.has(o.v)?" on":""}" data-v="${o.v}">${o.t}</span>`).join("");
+  if (!box.querySelector(".opt.on")){                                             // none carried over → default to center
+    (box.querySelector('[data-v="center"]') || box.querySelector(".opt"))?.classList.add("on");
+  }
+  box.querySelectorAll(".opt").forEach(el => el.addEventListener("click", ()=>{
+    el.classList.toggle("on");
+    if (!box.querySelector(".opt.on")) el.classList.add("on");                    // always keep at least one
+  }));
+}
+function selectedPositions(){
+  const on = [...document.querySelectorAll('#genPosition .opt.on')].map(o=>o.dataset.v);
+  return on.length ? on : ["center"];
+}
+// copy-space clause: product on one side, opposite side kept clean for the banner's text/logo
+const POSITION_CLAUSE = {
+  top:    "COMPOSITION FOR AN AD BANNER: place the product group in the TOP part of the frame; keep the LOWER half as clean, empty brand-green gradient space (no objects) for the headline and logo. Keep the product away from all edges. No text or logos rendered in the image.",
+  bottom: "COMPOSITION FOR AN AD BANNER: place the product group in the LOWER part of the frame; keep the UPPER half as clean, empty brand-green gradient space (no objects) for the headline and logo. Keep the product away from all edges. No text or logos rendered in the image.",
+  left:   "COMPOSITION FOR AN AD BANNER: place the product group on the LEFT side of the frame; keep the RIGHT half as clean, empty brand-green gradient space (no objects) for the headline and logo. Keep the product away from all edges. No text or logos rendered in the image.",
+  right:  "COMPOSITION FOR AN AD BANNER: place the product group on the RIGHT side of the frame; keep the LEFT half as clean, empty brand-green gradient space (no objects) for the headline and logo. Keep the product away from all edges. No text or logos rendered in the image.",
+  center: "COMPOSITION FOR AN AD BANNER: keep the product group centered with generous, even, empty brand-green gradient negative space around it for the headline and logo. Keep the product away from all edges. No text or logos rendered in the image."
+};
+document.addEventListener("change", (e)=>{ if (e.target && e.target.id === "genFormat") updatePositionOptions(); });
+updatePositionOptions();
+
+/* ----- editable brand / style prompts (Brand tab) — overlay localStorage on the defaults ----- */
+function genBaseText(){ const v = localStorage.getItem("drmax_gen_base"); return v != null ? v : DRMAX_BASE; }
+function genStyleText(s){
+  try { const o = JSON.parse(localStorage.getItem("drmax_gen_styles") || "{}"); return (o && o[s] != null) ? o[s] : (STYLE_PROMPTS[s] || ""); }
+  catch(_){ return STYLE_PROMPTS[s] || ""; }
+}
+// per-style reference images (used in generation) — small data URLs in localStorage
+function genRefs(){ try { return JSON.parse(localStorage.getItem("drmax_gen_refs") || "{}"); } catch(_){ return {}; } }
+function styleRefFor(s){ return genRefs()[s] || ""; }
+function setStyleRef(s, dataUrl){
+  const o = genRefs(); if (dataUrl) o[s] = dataUrl; else delete o[s];
+  try { localStorage.setItem("drmax_gen_refs", JSON.stringify(o)); }
+  catch(e){ alert("Reference image is too large to store — try a smaller file."); }
+}
+function downscaleImage(file, max){
+  return new Promise((res,rej)=>{
+    const img = new Image();
+    img.onload = ()=>{ let w=img.naturalWidth, h=img.naturalHeight; const k=Math.min(1, max/Math.max(w,h||1));
+      w=Math.max(1,Math.round(w*k)); h=Math.max(1,Math.round(h*k));
+      const c=document.createElement("canvas"); c.width=w; c.height=h; c.getContext("2d").drawImage(img,0,0,w,h); res(c.toDataURL("image/jpeg",0.82)); };
+    img.onerror = rej;
+    const fr = new FileReader(); fr.onload = ()=>{ img.src = fr.result; }; fr.onerror = rej; fr.readAsDataURL(file);
+  });
+}
+function renderBrandGenSettings(){
+  const box = document.getElementById("brandGenSettings"); if (!box) return;
+  const rows = Object.keys(STYLE_PROMPTS).map(s => {
+    const ref = styleRefFor(s);
+    const thumb = ref
+      ? `<img src="${ref}" style="width:54px;height:54px;object-fit:cover;border-radius:8px;border:1px solid var(--line);">`
+      : `<div style="width:54px;height:54px;border-radius:8px;border:1px dashed var(--line);display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:20px;">🖼️</div>`;
+    return `<label class="lbl" style="margin-top:16px;">${STYLE_LABEL[s]||s}</label>
+      <textarea class="genStyleEdit" data-s="${s}" rows="2">${esc(genStyleText(s))}</textarea>
+      <div style="display:flex;align-items:center;gap:10px;margin-top:8px;">
+        ${thumb}
+        <label class="mini" style="cursor:pointer;">${ref?"Change reference":"Add reference"}<input type="file" accept="image/*" class="genRefInput" data-s="${s}" style="display:none;"></label>
+        ${ref?`<button class="mini genRefClear" data-s="${s}" type="button">Remove</button>`:""}
+        <span class="muted" style="font-size:11px;">brand example for this style — colour, light &amp; mood (feeds the model)</span>
+      </div>`;
+  }).join("");
+  box.innerHTML = `<label class="lbl">Dr.Max brand look — added to every generated image</label><textarea id="genBaseEdit" rows="3">${esc(genBaseText())}</textarea>${rows}`;
+  box.querySelectorAll(".genRefInput").forEach(inp => inp.addEventListener("change", async e=>{
+    const f = e.target.files && e.target.files[0]; if (!f) return;
+    try { setStyleRef(inp.dataset.s, await downscaleImage(f, 640)); renderBrandGenSettings(); }
+    catch(_){ alert("Could not read that image."); }
+  }));
+  box.querySelectorAll(".genRefClear").forEach(btn => btn.addEventListener("click", ()=>{ setStyleRef(btn.dataset.s, ""); renderBrandGenSettings(); }));
+}
+// pull the shared server config so the client opens with what was set (not empty defaults)
+async function loadBrandConfig(){
+  try {
+    const r = await fetch("/brand-config?client=" + encodeURIComponent(CLIENT_ID));
+    if (!r.ok) return;
+    const cfg = await r.json();
+    if (cfg && (cfg.base != null || cfg.styles || cfg.refs)){
+      if (cfg.base != null) localStorage.setItem("drmax_gen_base", cfg.base);
+      if (cfg.styles) localStorage.setItem("drmax_gen_styles", JSON.stringify(cfg.styles));
+      if (cfg.refs)   localStorage.setItem("drmax_gen_refs", JSON.stringify(cfg.refs));
+      renderBrandGenSettings();
+    }
+  } catch(_){}
+}
+// reference slot for the Custom prompt (stored under the "custom" key, like the built-in styles)
+function renderCustomRef(){
+  const box = document.getElementById("customRefRow"); if (!box) return;
+  const ref = styleRefFor("custom");
+  const thumb = ref
+    ? `<img src="${ref}" style="width:54px;height:54px;object-fit:cover;border-radius:8px;border:1px solid var(--line);">`
+    : `<div style="width:54px;height:54px;border-radius:8px;border:1px dashed var(--line);display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:20px;">🖼️</div>`;
+  box.innerHTML = thumb
+    + `<label class="mini" style="cursor:pointer;">${ref?"Change reference":"Add reference"}<input type="file" accept="image/*" id="customRefInput" style="display:none;"></label>`
+    + (ref?`<button class="mini" id="customRefClear" type="button">Remove</button>`:"")
+    + `<span class="muted" style="font-size:11px;">optional style reference — colour, light &amp; mood</span>`;
+  document.getElementById("customRefInput")?.addEventListener("change", async e=>{
+    const f = e.target.files && e.target.files[0]; if (!f) return;
+    try { setStyleRef("custom", await downscaleImage(f, 640)); renderCustomRef(); }
+    catch(_){ alert("Could not read that image."); }
+  });
+  document.getElementById("customRefClear")?.addEventListener("click", ()=>{ setStyleRef("custom", ""); renderCustomRef(); });
+}
+(function initBrandGen(){
+  renderBrandGenSettings();
+  renderCustomRef();
+  loadBrandConfig();
+  document.getElementById("brandGenSave")?.addEventListener("click", async ()=>{
+    const base = document.getElementById("genBaseEdit").value;
+    const styles = {}; document.querySelectorAll(".genStyleEdit").forEach(t => styles[t.dataset.s] = t.value);
+    const refs = genRefs();
+    localStorage.setItem("drmax_gen_base", base);
+    localStorage.setItem("drmax_gen_styles", JSON.stringify(styles));
+    const b = document.getElementById("brandGenSave"); const orig = b ? b.textContent : "";
+    if (b){ b.disabled = true; b.textContent = "Saving…"; }
+    try {
+      const r = await fetch("/brand-config", { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({ client: CLIENT_ID, base, styles, refs }) });
+      if (!r.ok) throw new Error("save failed");
+      if (b) b.textContent = "Saved ✓ (shared)";
+    } catch(e){ if (b) b.textContent = "Saved locally only"; }
+    finally { if (b) setTimeout(()=>{ b.textContent = orig; b.disabled = false; }, 2000); }
+  });
+  document.getElementById("brandGenReset")?.addEventListener("click", ()=>{
+    localStorage.removeItem("drmax_gen_base"); localStorage.removeItem("drmax_gen_styles"); localStorage.removeItem("drmax_gen_refs"); renderBrandGenSettings();
+  });
+})();
+
 async function genImages(){
   if (!uploadedProducts.length){ alert("Upload a product first."); return; }
   const styles = [...document.querySelectorAll('#styleGrid .style-card.active')].map(c=>c.dataset.style);
@@ -238,48 +391,73 @@ async function genImages(){
   const vars = parseInt(document.getElementById("genVars").value,10) || 4;
   const fmt = document.getElementById("genFormat").value;
   const quality = document.getElementById("genQuality").value;
+  const genModel = document.getElementById("genModel")?.value || undefined;
+  const positions = selectedPositions();
   const prods = uploadedProducts.slice(0, MAX_PRODUCTS);
 
-  // style × variation prompt matrix (every prompt is prefixed with the product-fidelity guard)
+  // matrix = style × position × variation (fidelity guard + style + variation + banner copy-space position)
+  const brandBase = genBaseText();
   const matrix = [];
   styles.forEach(s=>{
-    const base = s === "custom" ? customText : (STYLE_PROMPTS[s] || "");
-    for (let v=0; v<vars; v++){
-      matrix.push({ label:`${STYLE_LABEL[s]||s} · ${VAR_LETTERS[v]||("V"+(v+1))}`, text:`${ANTI_HALLUCINATION} ${base} ${VARIATION_SUFFIX[v]||""}`.trim() });
-    }
+    const base = s === "custom" ? customText : genStyleText(s);
+    const sref = styleRefFor(s);   // per-style brand reference image (incl. "custom")
+    const refClause = sref ? "An extra STYLE REFERENCE image is attached — use it ONLY for overall colour palette, lighting and mood. Do NOT copy or include any products, people, logos, graphic shapes, plus symbols, frames or text from the style reference; the product(s) must come solely from the product reference image(s)." : "";
+    positions.forEach(pos=>{
+      const posClause = POSITION_CLAUSE[pos] || "";
+      for (let v=0; v<vars; v++){
+        matrix.push({ label:`${STYLE_LABEL[s]||s} · ${pos} · ${VAR_LETTERS[v]||("V"+(v+1))}`, styleRef: sref, text:`${ANTI_HALLUCINATION} ${refClause} ${brandBase} ${base} ${VARIATION_SUFFIX[v]||""} ${posClause}`.trim() });
+      }
+    });
   });
+
+  // large batches are slower and can hit rate limits — warn before launching a big one
+  if (matrix.length > 12 && !confirm(`This will generate ${matrix.length} images. Big batches are slower and may hit rate limits (some can be skipped). For reliability, generate in smaller sets. Continue?`)) return;
 
   const btn = document.getElementById("btnGenImg");
   btn.disabled = true; btn.textContent = "Generating…";
-  show("imgResCard"); show("imgLoading"); hide("imgGrid"); setErr("imgErr","");
-  document.getElementById("imgLoading").innerHTML = `<div class="spin"></div> Generating ${matrix.length} ${matrix.length===1?"scene":"scenes"}… (${prods.length} prod. × ${fmt} · ${quality}, this may take a few minutes)`;
-  try{
-    const res = await fetch("/generate-scenes", {
-      method:"POST", headers:{"Content-Type":"application/json"},
-      body: JSON.stringify({
-        products: prods.map(p=>({ name:p.name, dataUrl:p.dataUrl })),
-        prompts: matrix.map(m=>({ label:m.label, text:m.text })),
-        aspectRatio: fmt,
-        imageSize: quality,
-        client: CLIENT_ID,
-        composition: false
-      })
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || "Generation failed");
-    const scenes = data.scenes || [];
-    if (!scenes.length) throw new Error("No images generated");
-    generatedScenes = [];
-    scenes.forEach((url,i)=>{ generatedScenes.push({ url, aspect:fmt, label:(matrix[i] && matrix[i].label) || "scene", prompt:(matrix[i] && matrix[i].text) || "" }); savedImages.push({ url }); });
-    hide("imgLoading");
-    document.getElementById("imgGrid").classList.remove("hidden");
-    document.getElementById("imgCount").textContent = `— ${scenes.length} scenes · ${styles.length} style(s) × ${vars} · ${prods.length} prod. · ${fmt} · ${quality}`;
-    renderGenGrid();
-  }catch(err){
-    console.error(err); hide("imgLoading"); setErr("imgErr", `Error: ${err.message}`);
-  }finally{
-    btn.disabled = false; btn.textContent = "Generate images →";
-  }
+  show("imgResCard"); show("imgLoading"); setErr("imgErr","");
+  document.getElementById("imgGrid").classList.remove("hidden");
+  document.getElementById("imgGrid").innerHTML = "";
+  generatedScenes = [];
+  const total = matrix.length;
+  let failed = 0;
+  const status = ()=>{ document.getElementById("imgLoading").innerHTML =
+    `<div class="spin"></div> Generating… <b>${generatedScenes.length}/${total}</b> ready${failed?` · ${failed} skipped`:""}`; };
+  status();
+
+  // one scene per request → each appears as soon as it's ready; one failure never kills the rest
+  const genOne = async (m)=>{
+    try {
+      const res = await fetch("/generate-scenes", {
+        method:"POST", headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({
+          products: prods.map(p=>({ name:p.name, dataUrl:p.dataUrl })),
+          prompts: [{ label:m.label, text:m.text, styleRef:m.styleRef || undefined }],
+          aspectRatio: fmt, imageSize: quality, model: genModel, client: CLIENT_ID, composition: false
+        })
+      });
+      const data = await res.json();
+      const url = (data.scenes || [])[0];
+      if (!res.ok || !url) throw new Error(data.error || "failed");
+      generatedScenes.push({ url, aspect:fmt, label:m.label, prompt:m.text, saved:true });
+      savedImages.push({ url });
+      renderGenGrid();           // re-render so the new one pops in immediately
+      // auto-save every generated image to the library (no button needed)
+      fetch("/save-asset", { method:"POST", headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({ client: CLIENT_ID, kind:"image", sourceUrl: url, meta:{ label:m.label, format:fmt } }) }).catch(()=>{});
+    } catch(e){ failed++; }
+    status();
+  };
+
+  // sequential (one request at a time) — most reliable against the model's rate limit
+  const worker = async ()=>{ let next = 0; while (next < matrix.length){ await genOne(matrix[next++]); } };
+  await worker();
+
+  hide("imgLoading");
+  document.getElementById("imgCount").textContent =
+    `— ${generatedScenes.length} generated${failed?`, ${failed} skipped (rate limit — regenerate those)`:""} · ${fmt} · ${quality}`;
+  if (!generatedScenes.length) setErr("imgErr", "All generations failed — try again with a smaller batch.");
+  btn.disabled = false; btn.textContent = "Generate images →";
 }
 function renderGenGrid(){
   const g = document.getElementById("imgGrid");
@@ -294,8 +472,8 @@ function renderGenGrid(){
         <button class="b" onclick="useScene(${i})">Use</button>
         <button onclick="regenScene(${i})" title="Generate another variant">↻</button>
         <button onclick="toggleSceneEdit(${i})" title="Edit with a prompt">✎</button>
-        <button onclick="saveScene(${i},this)" title="Save to library">💾</button>
-        <a href="${esc(s.url)}" target="_blank" download>PNG</a>
+        ${s.saved ? `<span title="Auto-saved to library" style="padding:5px 8px;color:var(--green);font-weight:800;">✓ Saved</span>` : `<button onclick="saveScene(${i},this)" title="Save to library">💾</button>`}
+        <a href="/download?url=${encodeURIComponent(s.url)}&name=drmax-${(s.label||'scene').replace(/[^a-z0-9]+/gi,'-')}.png">PNG</a>
       </div>
       <div class="gen-edit hidden" id="genedit-${i}">
         <input type="text" placeholder="e.g. remove the leaf, warmer background, less shadow" onkeydown="if(event.key==='Enter')applySceneEdit(${i})">
@@ -306,7 +484,12 @@ function renderGenGrid(){
 function sceneCell(i){ return document.querySelector(`#imgGrid .gen-cell[data-si="${i}"]`); }
 function setSceneBusy(i, busy){ const c=sceneCell(i); if(!c) return; const b=c.querySelector(".gen-busy"); if(b) b.classList.toggle("hidden", !busy); }
 function swapSceneImg(i, url){ const c=sceneCell(i); if(!c) return; c.querySelector(".img-item img").src=url; const dl=c.querySelector("a[download]"); if(dl) dl.href=url; }
-function useScene(i){ pickedSceneUrl = generatedScenes[i].url; showView("banners"); }
+function useScene(i){
+  const url = generatedScenes[i] && generatedScenes[i].url; if (!url) return;
+  pickedSceneUrl = url;                 // keep the legacy flow working too
+  showView("banners");
+  if (window.useSceneInBuilder) window.useSceneInBuilder(url);   // drop it into the adaptive builder
+}
 function toggleSceneEdit(i){ const b=document.getElementById("genedit-"+i); if(!b) return; b.classList.toggle("hidden"); const inp=b.querySelector("input"); if(inp && !b.classList.contains("hidden")) inp.focus(); }
 
 async function regenScene(i){
@@ -367,6 +550,7 @@ function useSavedScene(url, format){
   if (i<0){ generatedScenes.push({ url, aspect: format||"1:1", label:"saved" }); }
   pickedSceneUrl = url;
   showView("banners");
+  if (window.useSceneInBuilder) window.useSceneInBuilder(url);   // drop it into the adaptive builder too
 }
 
 /* ================= MODULE: banner creation ================= */
@@ -425,9 +609,44 @@ async function renderPick(){
 }
 function selPick(url){
   pickedSceneUrl = url;
-  document.querySelectorAll('#pickGrid .pick').forEach(p=>p.classList.toggle('sel', p.dataset.url===url));
+  document.querySelectorAll('#pickGrid .pick, #bBgGrid .pick').forEach(p=>p.classList.toggle('sel', p.dataset.url===url));
+  if (window.useSceneInBuilder) window.useSceneInBuilder(url);   // also set it as the builder background
 }
 function refreshLibrary(){ libraryImages = []; renderPick(); }
+
+// Background picker for the banner builder (Card 1) — opens in a MODAL so the growing
+// library never bloats the sidebar. Source: session generations + saved library.
+async function openBgModal(){
+  const m = document.getElementById("bgModal"); if (!m) return;
+  m.classList.remove("hidden");
+  await renderBgModal();
+}
+function closeBgModal(){ const m = document.getElementById("bgModal"); if (m) m.classList.add("hidden"); }
+async function renderBgModal(){
+  const g = document.getElementById("bgModalGrid"); if (!g) return;
+  g.innerHTML = `<div class="muted">Loading…</div>`;
+  await loadLibrary();
+  const sessionUrls = new Set(generatedScenes.map(s=>s.url));
+  const all = [
+    ...generatedScenes.map(s=>({ url:s.url, src:"session" })),
+    ...libraryImages.filter(s=>!sessionUrls.has(s.url)).map(s=>({ url:s.url, src:"library" }))
+  ];
+  if (!all.length){ g.innerHTML = `<div class="muted">No images yet — click „Generate new →" to create one.</div>`; return; }
+  g.innerHTML = all.map(s=>`
+    <div class="pick ${s.url===pickedSceneUrl?'sel':''}" data-url="${esc(s.url)}" onclick="pickBg('${esc(s.url)}')">
+      <img src="${esc(s.url)}"><span class="ck">✓</span><span class="src-tag">${s.src}</span>
+    </div>`).join("");
+}
+async function refreshBgModal(){ libraryImages = []; await renderBgModal(); }
+// pick from the modal → set as banner background, update the Card 1 preview, close.
+function pickBg(url){ selPick(url); updateBgCurrent(url); closeBgModal(); }
+// Card 1 compact preview of the chosen background (or a placeholder prompting to choose).
+function updateBgCurrent(url){
+  const c = document.getElementById("bBgCurrent"); if (!c) return;
+  c.innerHTML = url
+    ? `<img src="${esc(url)}" alt="background"><span class="bg-edit">Change</span>`
+    : `<div class="bg-empty">No background chosen yet.<br>Click to pick one 🖼</div>`;
+}
 
 /* templates now define their own size — keep the picker always visible */
 

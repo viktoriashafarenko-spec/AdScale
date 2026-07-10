@@ -12,7 +12,7 @@
 
 import {
   THEME, ELEMENT_CSS, renderElement, bannerBackground, ELEMENTS
-} from "./elements.js?v=45";
+} from "./elements.js?v=46";
 
 /* ─── templates (data) ───────────────────────────────────────────── */
 
